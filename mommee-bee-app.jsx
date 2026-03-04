@@ -520,7 +520,7 @@ export default function MommeeBeeApp({ onNavigate, clients, setClients }) {
             label="Today"
             title="Recent Sales"
             action={
-              <button onClick={() => onNavigate("Sales")} style={{ fontSize: 12, color: C.primary, background: C.primary, color: "white", border: "none", borderRadius: 6, padding: "6px 14px", cursor: "pointer", fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>
+              <button onClick={() => onNavigate("Sales")} style={{ fontSize: 12, background: C.primary, color: "white", border: "none", borderRadius: 6, padding: "6px 14px", cursor: "pointer", fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>
                 + New Sale
               </button>
             }
