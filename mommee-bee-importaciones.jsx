@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { supabase } from "./src/supabaseClient.js";
 
 const C = {
-  primary: "#B36A23",
+  primary: "#CC9F75",
+  accent: "#B36A23",
   dark: "#4C5155",
   bg: "#EDEFEA",
   surface: "#ffffff",
@@ -17,6 +18,8 @@ const C = {
   blue: "#2563eb",     blueBg: "#dbeafe",
   purple: "#7c3aed",   purpleBg: "#ede9fe",
   beige: "#D9CCBD",
+  lightBlue: "#CEDBE6",
+  gray: "#727375",
 };
 
 const Card = ({ children, style }) => (
@@ -238,7 +241,13 @@ export default function MommeeImportaciones({ onNavigate }) {
   }
 
   return (
-    <div>
+    <div style={{ animation: "slideIn 0.3s ease both" }}>
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ fontSize: 10, color: C.primary, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 4 }}>◆ Logistics</div>
+        <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 34, letterSpacing: "0.06em", color: C.darkGray, lineHeight: 1, margin: 0 }}>IMPORTS</h1>
+        <p style={{ color: C.mutedGray, fontSize: 12, marginTop: 4 }}>Track shipments and manage logistics</p>
+      </div>
+
       {/* KPIs */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 20 }}>
         <Card>
@@ -279,6 +288,7 @@ export default function MommeeImportaciones({ onNavigate }) {
                 <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: C.darkGray }}>Import Orders ({imports.length})</div>
               </div>
               <button
+                className="btn-primary"
                 onClick={() => { setShowForm(!showForm); setSelectedImport(null); }}
                 style={{ background: C.primary, color: "white", border: "none", borderRadius: 8, padding: "9px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}
               >
@@ -416,7 +426,7 @@ export default function MommeeImportaciones({ onNavigate }) {
               </thead>
               <tbody>
                 {selectedItems.map((it, i) => (
-                  <tr key={i} style={{ borderBottom: `1px solid ${C.border}` }}>
+                  <tr key={i} className="row-hover" style={{ borderBottom: `1px solid ${C.border}` }}>
                     <td style={{ padding: "8px 8px", color: C.primary, fontWeight: 700 }}>{it.product_code}</td>
                     <td style={{ padding: "8px 8px", color: C.darkGray }}>{it.product_name}</td>
                     <td style={{ padding: "8px 8px", color: C.medGray }}>{it.quantity}</td>
@@ -570,6 +580,7 @@ export default function MommeeImportaciones({ onNavigate }) {
 
               <button
                 type="submit"
+                className="btn-primary"
                 disabled={saving}
                 style={{ width: "100%", background: saving ? C.mutedGray : C.primary, color: "white", border: "none", borderRadius: 10, padding: "13px 20px", fontSize: 14, fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", fontFamily: "'DM Sans', sans-serif" }}
               >

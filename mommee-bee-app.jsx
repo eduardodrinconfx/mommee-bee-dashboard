@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { supabase } from "./src/supabaseClient.js";
 
 const C = {
-  primary: "#B36A23",
+  primary: "#CC9F75",
+  accent: "#B36A23",
   dark: "#4C5155",
   bg: "#EDEFEA",
   surface: "#ffffff",
@@ -17,7 +18,8 @@ const C = {
   blue: "#2563eb",     blueBg: "#dbeafe",
   purple: "#7c3aed",   purpleBg: "#ede9fe",
   beige: "#D9CCBD",
-  lightAmber: "#CC9F75",
+  lightBlue: "#CEDBE6",
+  gray: "#727375",
 };
 
 const Card = ({ children, style }) => (
@@ -251,7 +253,25 @@ export default function MommeeBeeApp({ onNavigate, clients, setClients }) {
   }
 
   return (
-    <div>
+    <div style={{ animation: "slideIn 0.3s ease both" }}>
+      {/* PAGE HEADER */}
+      <div style={{ marginBottom: 24, display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+        <div>
+          <div style={{ fontSize: 10, color: C.primary, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 4 }}>◆ Main Panel</div>
+          <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 34, letterSpacing: "0.06em", color: C.darkGray, lineHeight: 1, margin: 0 }}>DASHBOARD</h1>
+          <p style={{ color: C.mutedGray, fontSize: 12, marginTop: 4 }}>
+            {now.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
+          </p>
+        </div>
+        <button
+          className="btn-ghost"
+          onClick={function() { loadData(); }}
+          style={{ background: "none", border: "1px solid " + C.border, borderRadius: 8, padding: "8px 14px", fontSize: 12, color: C.medGray, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontFamily: "'DM Sans', sans-serif" }}
+        >
+          ↻ Refresh
+        </button>
+      </div>
+
       {/* ROW 1 — Today KPIs */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 20 }}>
         <Card>

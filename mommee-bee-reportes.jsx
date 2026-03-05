@@ -6,7 +6,8 @@ import {
 } from "recharts";
 
 const C = {
-  primary: "#B36A23",
+  primary: "#CC9F75",
+  accent: "#B36A23",
   dark: "#4C5155",
   bg: "#EDEFEA",
   surface: "#ffffff",
@@ -21,11 +22,11 @@ const C = {
   blue: "#2563eb",     blueBg: "#dbeafe",
   purple: "#7c3aed",   purpleBg: "#ede9fe",
   beige: "#D9CCBD",
-  lightAmber: "#CC9F75",
   lightBlue: "#CEDBE6",
+  gray: "#727375",
 };
 
-const PIE_COLORS = [C.primary, C.dark, C.lightAmber, C.beige, C.lightBlue, C.yellow, C.green, C.blue];
+const PIE_COLORS = [C.primary, C.beige, C.primary, C.beige, C.lightBlue, C.yellow, C.green, C.blue];
 
 const Card = ({ children, style }) => (
   <div style={{
@@ -191,7 +192,14 @@ export default function MommeeReportes({ onNavigate }) {
   }
 
   return (
-    <div>
+    <div style={{ animation: "slideIn 0.3s ease both" }}>
+      {/* Page Header */}
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ fontSize: 10, color: C.primary, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 4 }}>◆ Analytics</div>
+        <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 34, letterSpacing: "0.06em", color: C.darkGray, lineHeight: 1, margin: 0 }}>REPORTS</h1>
+        <p style={{ color: C.mutedGray, fontSize: 12, marginTop: 4 }}>Data analytics and performance metrics</p>
+      </div>
+
       {/* Filters */}
       <Card style={{ marginBottom: 20 }}>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>

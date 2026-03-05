@@ -10,14 +10,14 @@ const SIDEBAR_W = 224;
 
 const BeeLogo = () => (
   <svg width="38" height="38" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M44 40 C40 31 35 24 31 18" stroke="#B36A23" strokeWidth="2.2" strokeLinecap="round"/>
-    <circle cx="30" cy="16" r="3" fill="#B36A23"/>
-    <path d="M56 40 C60 31 65 24 69 18" stroke="#B36A23" strokeWidth="2.2" strokeLinecap="round"/>
-    <circle cx="70" cy="16" r="3" fill="#B36A23"/>
-    <path d="M50 44 C42 32 22 28 18 38 C15 46 26 52 40 48 C46 46 50 44 50 44" stroke="#B36A23" strokeWidth="2" fill="rgba(179,106,35,0.15)"/>
-    <path d="M50 44 C42 42 30 42 26 46 C22 50 30 52 42 50" stroke="#B36A23" strokeWidth="1.2" fill="none"/>
-    <path d="M50 44 C58 32 78 28 82 38 C85 46 74 52 60 48 C54 46 50 44 50 44" stroke="#B36A23" strokeWidth="2" fill="rgba(179,106,35,0.15)"/>
-    <path d="M50 44 C58 42 70 42 74 46 C78 50 70 52 58 50" stroke="#B36A23" strokeWidth="1.2" fill="none"/>
+    <path d="M44 40 C40 31 35 24 31 18" stroke="#CC9F75" strokeWidth="2.2" strokeLinecap="round"/>
+    <circle cx="30" cy="16" r="3" fill="#CC9F75"/>
+    <path d="M56 40 C60 31 65 24 69 18" stroke="#CC9F75" strokeWidth="2.2" strokeLinecap="round"/>
+    <circle cx="70" cy="16" r="3" fill="#CC9F75"/>
+    <path d="M50 44 C42 32 22 28 18 38 C15 46 26 52 40 48 C46 46 50 44 50 44" stroke="#CC9F75" strokeWidth="2" fill="rgba(204,159,117,0.15)"/>
+    <path d="M50 44 C42 42 30 42 26 46 C22 50 30 52 42 50" stroke="#CC9F75" strokeWidth="1.2" fill="none"/>
+    <path d="M50 44 C58 32 78 28 82 38 C85 46 74 52 60 48 C54 46 50 44 50 44" stroke="#CC9F75" strokeWidth="2" fill="rgba(204,159,117,0.15)"/>
+    <path d="M50 44 C58 42 70 42 74 46 C78 50 70 52 58 50" stroke="#CC9F75" strokeWidth="1.2" fill="none"/>
     <ellipse cx="50" cy="78" rx="11" ry="19" fill="#B36A23"/>
     <rect x="39" y="71" width="22" height="2.5" rx="1.25" fill="white" opacity="0.85"/>
     <rect x="39" y="77" width="22" height="2.5" rx="1.25" fill="white" opacity="0.85"/>
@@ -78,15 +78,22 @@ const GLOBAL_CSS = `
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'DM Sans', sans-serif; }
 
+  /* ── Scrollbar ── */
   ::-webkit-scrollbar { width: 4px; height: 4px; }
   ::-webkit-scrollbar-thumb { background: #D9CCBD; border-radius: 4px; }
   ::-webkit-scrollbar-track { background: transparent; }
 
+  /* ── Keyframes ── */
+  @keyframes pulse         { 0%,100%{opacity:1} 50%{opacity:0.3} }
   @keyframes dotBreathe    { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.4);opacity:0.6} }
   @keyframes moduleEnter   { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
   @keyframes sidebarFadeIn { from{opacity:0;transform:translateX(-12px)} to{opacity:1;transform:translateX(0)} }
-  @keyframes logoGlow      { 0%,100%{filter:drop-shadow(0 0 6px rgba(179,106,35,0))} 50%{filter:drop-shadow(0 0 12px rgba(179,106,35,0.5))} }
+  @keyframes logoGlow      { 0%,100%{filter:drop-shadow(0 0 6px rgba(204,159,117,0))} 50%{filter:drop-shadow(0 0 12px rgba(204,159,117,0.45))} }
+  @keyframes slideIn       { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes fadeIn        { from{opacity:0} to{opacity:1} }
+  @keyframes pop           { 0%{transform:scale(0.95);opacity:0} 100%{transform:scale(1);opacity:1} }
 
+  /* ── Sidebar nav button ── */
   .sb-item {
     width:100%; display:flex; align-items:center; gap:11px;
     padding:10px 14px; margin-bottom:3px;
@@ -94,7 +101,7 @@ const GLOBAL_CSS = `
     border-left:3px solid transparent; border-radius:9px;
     cursor:pointer; font-family:'DM Sans',sans-serif;
     font-size:13px; font-weight:500;
-    color:#777; text-align:left; letter-spacing:0.02em;
+    color:#666; text-align:left; letter-spacing:0.02em;
     transition:background 0.2s cubic-bezier(.4,0,.2,1),
                color 0.2s cubic-bezier(.4,0,.2,1),
                border-color 0.2s cubic-bezier(.4,0,.2,1),
@@ -104,48 +111,71 @@ const GLOBAL_CSS = `
   }
   .sb-item::after {
     content:''; position:absolute; inset:0;
-    background:linear-gradient(90deg, rgba(179,106,35,0.08) 0%, transparent 70%);
+    background:linear-gradient(90deg, rgba(204,159,117,0.08) 0%, transparent 70%);
     opacity:0; transition:opacity 0.25s ease; border-radius:9px;
   }
-  .sb-item:hover { background:rgba(255,255,255,0.04); color:#bbb; transform:translateX(3px); }
+  .sb-item:hover { background:rgba(255,255,255,0.055); color:#bbb; transform:translateX(3px); }
   .sb-item:hover svg { stroke:#bbb; }
   .sb-item.active {
-    background:linear-gradient(90deg, rgba(179,106,35,0.18) 0%, rgba(179,106,35,0.05) 100%);
-    color:#B36A23; border-left-color:#B36A23; font-weight:700;
-    box-shadow:0 2px 12px rgba(179,106,35,0.15);
+    background:linear-gradient(90deg, rgba(204,159,117,0.18) 0%, rgba(204,159,117,0.05) 100%);
+    color:#CC9F75; border-left-color:#CC9F75; font-weight:700;
+    box-shadow:0 2px 12px rgba(204,159,117,0.15);
   }
   .sb-item.active::after { opacity:1; }
-  .sb-item.active svg { stroke:#B36A23; filter:drop-shadow(0 0 4px rgba(179,106,35,0.5)); }
+  .sb-item.active svg { stroke:#CC9F75; filter:drop-shadow(0 0 4px rgba(204,159,117,0.5)); }
   .sb-item svg { flex-shrink:0; transition:stroke 0.2s, filter 0.2s; }
 
+  /* ── Module animations ── */
   .module-page { animation: moduleEnter 0.22s cubic-bezier(.4,0,.2,1) both; }
   .sidebar-animate { animation: sidebarFadeIn 0.3s cubic-bezier(.4,0,.2,1) both; }
 
+  /* ── Global table improvements ── */
   .module-content table tbody tr { transition:background 0.12s ease !important; }
-  .module-content table tbody tr:hover { background:rgba(179,106,35,0.04) !important; }
+  .module-content table tbody tr:hover { background:rgba(204,159,117,0.04) !important; }
   .module-content table thead th { border-bottom:2px solid #d0d0cf !important; letter-spacing:0.06em !important; }
 
+  /* ── Inputs & buttons ── */
   .module-content input, .module-content select, .module-content textarea {
     transition:border-color 0.18s ease, box-shadow 0.18s ease !important;
   }
-  .module-content input:focus, .module-content select:focus {
-    border-color:#B36A23 !important;
-    box-shadow:0 0 0 3px rgba(179,106,35,0.12) !important;
+  .module-content input:focus, .module-content select:focus, .module-content textarea:focus {
+    border-color:#CC9F75 !important;
+    box-shadow:0 0 0 3px rgba(204,159,117,0.15) !important;
     outline:none !important;
   }
+  input::placeholder { color:#bbb; }
+  select option { background:#fff; color:#1a1a1a; }
+
   .module-content button {
-    transition:background 0.15s ease, color 0.15s ease,
+    transition:background 0.15s ease, color 0.15s ease, border-color 0.15s ease,
                transform 0.12s ease, box-shadow 0.15s ease !important;
   }
   .module-content button:active { transform:scale(0.97) !important; }
+
+  /* ── Button variants ── */
+  .btn-primary:hover { background:#b8895f !important; transform:translateY(-1px); box-shadow:0 4px 16px rgba(204,159,117,0.3) !important; }
+  .btn-ghost:hover { border-color:#CC9F75 !important; color:#CC9F75 !important; }
+  .btn-accent:hover { background:#a05c1c !important; transform:translateY(-1px); box-shadow:0 4px 16px rgba(179,106,35,0.3) !important; }
+
+  /* ── Row hover ── */
+  .row-hover:hover { background:#f8f8f7 !important; }
+  .exp-row:hover { background:#f8f8f7 !important; }
+  .alert-row:hover { background:#f0f0ef !important; cursor:default; }
+
+  /* ── Toggle / Tab buttons ── */
+  .toggle-btn:hover { opacity:0.85; }
 `;
 
 export default function App() {
-  const [activeModule, setActiveModule] = useState("Dashboard");
-  const [clients, setClients] = useState([]);
+  var activeModule = useState("Dashboard");
+  var setActiveModule = activeModule[1];
+  activeModule = activeModule[0];
+  var clientsState = useState([]);
+  var clients = clientsState[0];
+  var setClients = clientsState[1];
 
-  const renderModule = () => {
-    const props = { onNavigate: setActiveModule, activeModule, clients, setClients };
+  var renderModule = function() {
+    var props = { onNavigate: setActiveModule, activeModule: activeModule, clients: clients, setClients: setClients };
     switch (activeModule) {
       case "Sales":     return <MommeeVentas {...props} />;
       case "Inventory": return <MommeeInventario {...props} />;
@@ -165,7 +195,7 @@ export default function App() {
         <aside
           className="sidebar-animate"
           style={{
-            width: `${SIDEBAR_W}px`, minWidth: `${SIDEBAR_W}px`,
+            width: SIDEBAR_W + "px", minWidth: SIDEBAR_W + "px",
             background: "linear-gradient(180deg, #1c1c1c 0%, #161616 100%)",
             display: "flex", flexDirection: "column",
             position: "fixed", top: 0, left: 0, height: "100vh",
@@ -178,7 +208,7 @@ export default function App() {
           <div style={{
             padding: "22px 18px 18px",
             borderBottom: "1px solid rgba(255,255,255,0.06)",
-            background: "linear-gradient(180deg,rgba(179,106,35,0.05) 0%,transparent 100%)",
+            background: "linear-gradient(180deg,rgba(204,159,117,0.05) 0%,transparent 100%)",
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: "11px" }}>
               <div style={{ animation: "logoGlow 4s ease-in-out infinite", flexShrink: 0 }}>
@@ -188,7 +218,7 @@ export default function App() {
                 <div style={{
                   fontFamily: "'Bebas Neue', sans-serif",
                   fontSize: "17px", letterSpacing: "0.18em",
-                  color: "#B36A23", lineHeight: 1,
+                  color: "#CC9F75", lineHeight: 1,
                 }}>
                   MOMMEE BEE
                 </div>
@@ -217,23 +247,28 @@ export default function App() {
 
           {/* Nav items */}
           <nav style={{ flex: 1, padding: "0 10px", display: "flex", flexDirection: "column" }}>
-            {NAV_ITEMS.map(({ key, label, Icon }) => (
-              <button
-                key={key}
-                className={`sb-item${activeModule === key ? " active" : ""}`}
-                onClick={() => setActiveModule(key)}
-              >
-                <Icon />
-                <span>{label}</span>
-                {activeModule === key && (
-                  <div style={{
-                    marginLeft: "auto", width: "5px", height: "5px",
-                    borderRadius: "50%", background: "#B36A23",
-                    boxShadow: "0 0 6px rgba(179,106,35,0.8)", flexShrink: 0,
-                  }} />
-                )}
-              </button>
-            ))}
+            {NAV_ITEMS.map(function(item) {
+              var key = item.key;
+              var label = item.label;
+              var Icon = item.Icon;
+              return (
+                <button
+                  key={key}
+                  className={"sb-item" + (activeModule === key ? " active" : "")}
+                  onClick={function() { setActiveModule(key); }}
+                >
+                  <Icon />
+                  <span>{label}</span>
+                  {activeModule === key && (
+                    <div style={{
+                      marginLeft: "auto", width: "5px", height: "5px",
+                      borderRadius: "50%", background: "#CC9F75",
+                      boxShadow: "0 0 6px rgba(204,159,117,0.8)", flexShrink: 0,
+                    }} />
+                  )}
+                </button>
+              );
+            })}
           </nav>
 
           {/* Live status */}
@@ -257,7 +292,7 @@ export default function App() {
         {/* ── MAIN CONTENT ── */}
         <div
           className="module-content"
-          style={{ marginLeft: `${SIDEBAR_W}px`, flex: 1, minWidth: 0, overflowX: "hidden" }}
+          style={{ marginLeft: SIDEBAR_W + "px", flex: 1, minWidth: 0, overflowX: "hidden" }}
         >
           <div key={activeModule} className="module-page" style={{ padding: "24px 28px" }}>
             {renderModule()}

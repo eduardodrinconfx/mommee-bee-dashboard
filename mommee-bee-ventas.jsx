@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { supabase } from "./src/supabaseClient.js";
 
 const C = {
-  primary: "#B36A23",
+  primary: "#CC9F75",
+  accent: "#B36A23",
   dark: "#4C5155",
   bg: "#EDEFEA",
   surface: "#ffffff",
@@ -17,6 +18,8 @@ const C = {
   blue: "#2563eb",     blueBg: "#dbeafe",
   purple: "#7c3aed",   purpleBg: "#ede9fe",
   beige: "#D9CCBD",
+  lightBlue: "#CEDBE6",
+  gray: "#727375",
 };
 
 const Card = ({ children, style }) => (
@@ -257,12 +260,22 @@ export default function MommeeVentas({ onNavigate, clients, setClients }) {
   };
 
   return (
-    <div>
+    <div style={{ animation: "slideIn 0.3s ease both" }}>
+      {/* PAGE HEADER */}
+      <div style={{ marginBottom: 24, display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+        <div>
+          <div style={{ fontSize: 10, color: C.primary, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 4 }}>◆ Sales Module</div>
+          <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 34, letterSpacing: "0.06em", color: C.darkGray, lineHeight: 1, margin: 0 }}>SALES</h1>
+          <p style={{ color: C.mutedGray, fontSize: 12, marginTop: 4 }}>Manage and track all transactions</p>
+        </div>
+      </div>
+
       {/* Tabs */}
       <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
         {[["form", "New Sale"], ["history", "Sales History"]].map(([key, label]) => (
           <button
             key={key}
+            className={activeTab === key ? "btn-primary" : "btn-ghost"}
             onClick={() => setActiveTab(key)}
             style={{
               background: activeTab === key ? C.primary : C.surface,
@@ -417,6 +430,7 @@ export default function MommeeVentas({ onNavigate, clients, setClients }) {
                   />
                   <button
                     type="button"
+                    className="btn-primary"
                     onClick={addToCart}
                     disabled={!selectedProd}
                     style={{
@@ -529,6 +543,7 @@ export default function MommeeVentas({ onNavigate, clients, setClients }) {
             )}
 
             <button
+              className="btn-primary"
               onClick={handleSubmit}
               disabled={saving || cart.length === 0}
               style={{
@@ -591,6 +606,7 @@ export default function MommeeVentas({ onNavigate, clients, setClients }) {
               </select>
               {(filterDate || filterPlatform || filterStatus) && (
                 <button
+                  className="btn-ghost"
                   onClick={() => { setFilterDate(""); setFilterPlatform(""); setFilterStatus(""); }}
                   style={{ background: C.surfaceAlt, border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 14px", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", color: C.medGray }}
                 >
@@ -613,14 +629,14 @@ export default function MommeeVentas({ onNavigate, clients, setClients }) {
                 </thead>
                 <tbody>
                   {filteredSales.length === 0 && (
-                    <tr>
+                    <tr className="row-hover">
                       <td colSpan={9} style={{ padding: 24, textAlign: "center", color: C.mutedGray }}>No sales found</td>
                     </tr>
                   )}
                   {filteredSales.map(s => {
                     const ss = STATUS_STYLE[s.payment_status] || { color: C.mutedGray, bg: C.surfaceAlt };
                     return (
-                      <tr key={s.id} style={{ borderBottom: `1px solid ${C.border}` }}>
+                      <tr key={s.id} className="row-hover" style={{ borderBottom: `1px solid ${C.border}` }}>
                         <td style={{ padding: "9px 10px", color: C.mutedGray }}>#{s.id}</td>
                         <td style={{ padding: "9px 10px", color: C.darkGray, whiteSpace: "nowrap" }}>{s.date}</td>
                         <td style={{ padding: "9px 10px", color: C.darkGray, fontWeight: 500 }}>{s.customer_name || "—"}</td>

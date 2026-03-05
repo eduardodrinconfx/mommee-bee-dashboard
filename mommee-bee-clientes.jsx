@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { supabase } from "./src/supabaseClient.js";
 
 const C = {
-  primary: "#B36A23",
+  primary: "#CC9F75",
+  accent: "#B36A23",
   dark: "#4C5155",
   bg: "#EDEFEA",
   surface: "#ffffff",
@@ -17,6 +18,8 @@ const C = {
   blue: "#2563eb",     blueBg: "#dbeafe",
   purple: "#7c3aed",   purpleBg: "#ede9fe",
   beige: "#D9CCBD",
+  lightBlue: "#CEDBE6",
+  gray: "#727375",
 };
 
 const Card = ({ children, style }) => (
@@ -235,7 +238,13 @@ export default function MommeeClientes({ onNavigate, clients, setClients }) {
   }
 
   return (
-    <div>
+    <div style={{ animation: "slideIn 0.3s ease both" }}>
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ fontSize: 10, color: C.primary, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 4 }}>◆ CRM</div>
+        <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 34, letterSpacing: "0.06em", color: C.darkGray, lineHeight: 1, margin: 0 }}>CLIENTS</h1>
+        <p style={{ color: C.mutedGray, fontSize: 12, marginTop: 4 }}>Customer relationship management</p>
+      </div>
+
       {/* KPIs */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16, marginBottom: 20 }}>
         <Card>
@@ -267,7 +276,7 @@ export default function MommeeClientes({ onNavigate, clients, setClients }) {
             label="CRM"
             title={`Clients (${filtered.length})`}
             action={
-              <button onClick={() => openModal(null)} style={{ background: C.primary, color: "white", border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
+              <button className="btn-primary" onClick={() => openModal(null)} style={{ background: C.primary, color: "white", border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
                 + New Client
               </button>
             }
@@ -317,6 +326,7 @@ export default function MommeeClientes({ onNavigate, clients, setClients }) {
                   return (
                     <tr
                       key={c.id}
+                      className="row-hover"
                       onClick={() => selectClient(c)}
                       style={{
                         borderBottom: `1px solid ${C.border}`,
@@ -551,7 +561,7 @@ export default function MommeeClientes({ onNavigate, clients, setClients }) {
                   <input type="text" placeholder="Additional notes..." value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} style={iStyle} />
                 </div>
               </div>
-              <button type="submit" disabled={saving} style={{ width: "100%", background: saving ? C.mutedGray : C.primary, color: "white", border: "none", borderRadius: 9, padding: "12px 20px", fontSize: 14, fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", fontFamily: "'DM Sans', sans-serif" }}>
+              <button type="submit" className="btn-primary" disabled={saving} style={{ width: "100%", background: saving ? C.mutedGray : C.primary, color: "white", border: "none", borderRadius: 9, padding: "12px 20px", fontSize: 14, fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", fontFamily: "'DM Sans', sans-serif" }}>
                 {saving ? "Saving..." : editClient ? "Save Changes" : "Create Client"}
               </button>
             </form>

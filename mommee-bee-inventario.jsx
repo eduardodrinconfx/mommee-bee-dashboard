@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { supabase } from "./src/supabaseClient.js";
 
 const C = {
-  primary: "#B36A23",
+  primary: "#CC9F75",
+  accent: "#B36A23",
   dark: "#4C5155",
   bg: "#EDEFEA",
   surface: "#ffffff",
@@ -17,6 +18,8 @@ const C = {
   blue: "#2563eb",     blueBg: "#dbeafe",
   purple: "#7c3aed",   purpleBg: "#ede9fe",
   beige: "#D9CCBD",
+  lightBlue: "#CEDBE6",
+  gray: "#727375",
 };
 
 const Card = ({ children, style }) => (
@@ -173,7 +176,11 @@ export default function MommeeInventario({ onNavigate }) {
   }
 
   return (
-    <div>
+    <div style={{ animation: "slideIn 0.3s ease both" }}>
+      <div style={{ fontSize: 10, color: C.primary, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 4 }}>◆ Product Management</div>
+      <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 34, letterSpacing: "0.06em", color: C.darkGray, lineHeight: 1, margin: 0 }}>INVENTORY</h1>
+      <p style={{ color: C.mutedGray, fontSize: 12, marginTop: 4 }}>Product catalog and stock management</p>
+
       {/* KPIs */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 20 }}>
         <Card>
@@ -220,6 +227,7 @@ export default function MommeeInventario({ onNavigate }) {
           </select>
           <div style={{ marginLeft: "auto" }}>
             <button
+              className="btn-primary"
               onClick={() => setShowAdd(!showAdd)}
               style={{
                 background: C.primary,
@@ -301,6 +309,7 @@ export default function MommeeInventario({ onNavigate }) {
             </div>
             <div style={{ display: "flex", alignItems: "flex-end" }}>
               <button
+                className="btn-primary"
                 onClick={addProduct}
                 disabled={saving}
                 style={{
@@ -334,8 +343,8 @@ export default function MommeeInventario({ onNavigate }) {
           </div>
           {editingId && (
             <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={() => { setEditingId(null); setEditData({}); }} style={{ background: C.surfaceAlt, border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 14px", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>Cancel</button>
-              <button onClick={saveEdit} disabled={saving} style={{ background: C.primary, color: "white", border: "none", borderRadius: 8, padding: "8px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
+              <button className="btn-ghost" onClick={() => { setEditingId(null); setEditData({}); }} style={{ background: C.surfaceAlt, border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 14px", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>Cancel</button>
+              <button className="btn-primary" onClick={saveEdit} disabled={saving} style={{ background: C.primary, color: "white", border: "none", borderRadius: 8, padding: "8px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
                 {saving ? "Saving..." : "Save Changes"}
               </button>
             </div>
@@ -353,13 +362,13 @@ export default function MommeeInventario({ onNavigate }) {
             </thead>
             <tbody>
               {filtered.length === 0 && (
-                <tr><td colSpan={12} style={{ padding: 24, textAlign: "center", color: C.mutedGray }}>No products found</td></tr>
+                <tr className="row-hover"><td colSpan={12} style={{ padding: 24, textAlign: "center", color: C.mutedGray }}>No products found</td></tr>
               )}
               {filtered.map(p => {
                 const isCritical = p.stock <= p.min_stock && p.status === "Active";
                 const isEditing = editingId === p.id;
                 return (
-                  <tr key={p.id} style={{ borderBottom: `1px solid ${C.border}`, background: isCritical ? `${C.red}06` : "transparent" }}>
+                  <tr key={p.id} className="row-hover" style={{ borderBottom: `1px solid ${C.border}`, background: isCritical ? `${C.red}06` : "transparent" }}>
                     <td style={{ padding: "9px 10px", color: C.primary, fontWeight: 700 }}>{p.code}</td>
                     <td style={{ padding: "9px 10px" }}>
                       {isEditing
@@ -420,6 +429,7 @@ export default function MommeeInventario({ onNavigate }) {
                       {isEditing
                         ? null
                         : <button
+                            className="btn-ghost"
                             onClick={() => startEdit(p)}
                             style={{ background: "transparent", border: `1px solid ${C.border}`, borderRadius: 6, padding: "4px 10px", fontSize: 11, cursor: "pointer", color: C.medGray, fontFamily: "'DM Sans', sans-serif" }}
                           >
