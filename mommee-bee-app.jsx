@@ -39,6 +39,86 @@ var MiniBar = function(props) {
   );
 };
 
+/* Sparkline SVG - mini chart for KPI cards */
+var Sparkline = function(props) {
+  var data = props.data || [0];
+  var color = props.color || C.primary;
+  var w = props.width || 60;
+  var h = props.height || 24;
+  var max = Math.max.apply(null, data.concat([1]));
+  var min = Math.min.apply(null, data.concat([0]));
+  var range = max - min || 1;
+  var points = data.map(function(v, i) {
+    var x = (i / (data.length - 1 || 1)) * w;
+    var y = h - ((v - min) / range) * (h - 4) - 2;
+    return x + "," + y;
+  }).join(" ");
+  return (
+    <svg width={w} height={h} viewBox={"0 0 " + w + " " + h} style={{ display: "block" }}>
+      <polyline points={points} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={data.length > 1 ? w : 0} cy={h - ((data[data.length - 1] - min) / range) * (h - 4) - 2} r="2" fill={color} />
+    </svg>
+  );
+};
+
+/* KPI Icon circles */
+var KpiIcon = function(props) {
+  var bg = props.bg || C.primaryLight;
+  var color = props.color || C.primary;
+  return (
+    <div style={{
+      width: "40px", height: "40px", borderRadius: "50%",
+      background: bg, display: "flex", alignItems: "center", justifyContent: "center",
+      flexShrink: 0,
+    }}>
+      {props.children}
+    </div>
+  );
+};
+
+var IconDollar = function(props) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={props.color || C.primary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
+    </svg>
+  );
+};
+var IconClock = function(props) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={props.color || C.blue} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+    </svg>
+  );
+};
+var IconTrend = function(props) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={props.color || C.green} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>
+    </svg>
+  );
+};
+var IconPercent = function(props) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={props.color || C.yellow} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>
+    </svg>
+  );
+};
+var IconRefresh = function() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/>
+    </svg>
+  );
+};
+var IconCursor = function() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.mutedGray} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/><path d="M13 13l6 6"/>
+    </svg>
+  );
+};
+
 var iStyle = {
   width: "100%", background: C.surface, border: "1px solid " + C.border,
   borderRadius: "8px", padding: "9px 12px", color: C.darkGray, fontSize: "13px",
@@ -102,7 +182,7 @@ export default function MommeeBeeApp(props) {
     });
   };
 
-  // ── Computations ──
+  // Computations
   var now = new Date();
   var currentMonth = now.getMonth();
   var currentYear = now.getFullYear();
@@ -123,10 +203,28 @@ export default function MommeeBeeApp(props) {
     return { month: month, sales: monthSales.reduce(function(sum, s) { return sum + (s.total_usd || 0); }, 0), active: monthSales.length > 0 };
   });
 
+  // Sparkline data (monthly sales for last 6 months)
+  var sparkData = [];
+  for (var si = 0; si < 7; si++) {
+    var mi = currentMonth - 6 + si;
+    if (mi < 0) mi += 12;
+    sparkData.push(salesByMonth[mi] ? salesByMonth[mi].sales : 0);
+  }
+
   // Current month
   var currentMonthSales = sales.filter(function(s) { return new Date(s.date).getMonth() === currentMonth; }).reduce(function(sum, s) { return sum + (s.total_usd || 0); }, 0);
   var currentMonthSaleIds = new Set(sales.filter(function(s) { return new Date(s.date).getMonth() === currentMonth; }).map(function(s) { return s.id; }));
   var monthItemsList = saleItems.filter(function(it) { return currentMonthSaleIds.has(it.sale_id); });
+
+  // Previous month comparison
+  var prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+  var prevMonthSales = sales.filter(function(s) { return new Date(s.date).getMonth() === prevMonth; }).reduce(function(sum, s) { return sum + (s.total_usd || 0); }, 0);
+  var prevMonthCount = sales.filter(function(s) { return new Date(s.date).getMonth() === prevMonth; }).length;
+  var currentMonthCount = sales.filter(function(s) { return new Date(s.date).getMonth() === currentMonth; }).length;
+
+  // Change indicators
+  var salesChange = prevMonthSales > 0 ? (((currentMonthSales - prevMonthSales) / prevMonthSales) * 100).toFixed(1) : 0;
+  var countChange = prevMonthCount > 0 ? currentMonthCount - prevMonthCount : 0;
 
   // COGS
   var productMap = {};
@@ -142,8 +240,8 @@ export default function MommeeBeeApp(props) {
   // P&L
   var grossProfit = currentMonthSales - monthCogs;
   var netProfit = grossProfit - totalOpex;
-  var grossMargin = monthCogs > 0 ? ((grossProfit / monthCogs) * 100).toFixed(1) : 0;
-  var netMargin = monthCogs > 0 ? ((netProfit / monthCogs) * 100).toFixed(1) : 0;
+  var grossMargin = currentMonthSales > 0 ? ((grossProfit / currentMonthSales) * 100).toFixed(1) : 0;
+  var netMargin = currentMonthSales > 0 ? ((netProfit / currentMonthSales) * 100).toFixed(1) : 0;
 
   // Top products
   var topProductsMap = {};
@@ -179,14 +277,14 @@ export default function MommeeBeeApp(props) {
 
   return (
     <div style={{ fontFamily: "'DM Sans',sans-serif", color: C.darkGray }}>
-      <style>{"\n        @keyframes slideIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}\n        @keyframes fadeIn{from{opacity:0}to{opacity:1}}\n        @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}\n        @keyframes pop{0%{transform:scale(0.95);opacity:0}100%{transform:scale(1);opacity:1}}\n        .btn-orange:hover{background:#b8895f!important;transform:translateY(-1px);box-shadow:0 4px 16px rgba(204,159,117,0.3)!important}\n        .btn-ghost:hover{border-color:#CC9F75!important;color:#CC9F75!important}\n        .row-hover:hover{background:#f8f8f7!important}\n        .toggle-btn:hover{opacity:0.85}\n        .exp-row:hover{background:#f8f8f7!important}\n        .alert-row:hover{background:#f0f0ef!important;cursor:default}\n      "}</style>
+      <style>{"\n        @keyframes slideIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}\n        @keyframes fadeIn{from{opacity:0}to{opacity:1}}\n        @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}\n        @keyframes pop{0%{transform:scale(0.95);opacity:0}100%{transform:scale(1);opacity:1}}\n        .btn-orange:hover{background:#b8895f!important;transform:translateY(-1px);box-shadow:0 4px 16px rgba(204,159,117,0.3)!important}\n        .btn-ghost:hover{border-color:#CC9F75!important;color:#CC9F75!important}\n        .row-hover:hover{background:#f8f8f7!important}\n        .toggle-btn:hover{opacity:0.85}\n        .exp-row:hover{background:#f8f8f7!important}\n        .alert-row:hover{background:#f0f0ef!important;cursor:default}\n        .kpi-card{transition:transform 0.15s ease,box-shadow 0.15s ease}\n        .kpi-card:hover{transform:translateY(-2px);box-shadow:0 4px 16px rgba(0,0,0,0.08)}\n      "}</style>
 
       <div style={{ maxWidth: "1280px", margin: "0 auto" }}>
 
         {/* PAGE HEADER */}
         <div style={{ marginBottom: "24px", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
           <div>
-            <div style={{ fontSize: "10px", color: C.primary, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: "4px" }}>◆ Main Panel</div>
+            <div style={{ fontSize: "10px", color: C.primary, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: "4px" }}>&#9670; Main Panel</div>
             <h1 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: "34px", letterSpacing: "0.06em", color: C.darkGray, lineHeight: 1, margin: 0 }}>DASHBOARD</h1>
             <p style={{ color: C.mutedGray, fontSize: "12px", marginTop: "4px" }}>
               {now.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
@@ -195,13 +293,88 @@ export default function MommeeBeeApp(props) {
           <button
             onClick={function() { setRefreshKey(function(k) { return k + 1; }); }}
             className="btn-ghost"
-            style={{ background: "none", border: "1px solid " + C.border, borderRadius: "8px", padding: "8px 14px", fontSize: "12px", color: C.medGray, cursor: "pointer", display: "flex", alignItems: "center", gap: "6px", fontFamily: "'DM Sans',sans-serif", transition: "all 0.15s" }}
+            style={{
+              background: "none", border: "1px solid " + C.border, borderRadius: "8px",
+              padding: "8px 16px", fontSize: "12px", color: C.medGray, cursor: "pointer",
+              display: "flex", alignItems: "center", gap: "7px",
+              fontFamily: "'DM Sans',sans-serif", fontWeight: 600, transition: "all 0.15s",
+            }}
           >
-            ↻ Refresh
+            <IconRefresh /> REFRESH
           </button>
         </div>
 
-        {/* ── ROW 1: KPIs TODAY + MONTH ── */}
+        {/* ROW 1: KPI Cards with icons, sparklines, change indicators */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "14px", marginBottom: "16px" }}>
+          {[
+            {
+              label: "Ventas del Mes",
+              val: "$" + currentMonthSales.toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+              change: salesChange !== 0 ? (parseFloat(salesChange) > 0 ? "+" : "") + salesChange + "%" : null,
+              changeUp: parseFloat(salesChange) >= 0,
+              color: C.primary, bg: C.primaryLight,
+              icon: function() { return <IconDollar color={C.primary} />; },
+              spark: sparkData,
+            },
+            {
+              label: "Transacciones",
+              val: String(currentMonthCount),
+              change: countChange !== 0 ? (countChange > 0 ? "+" : "") + countChange : null,
+              changeUp: countChange >= 0,
+              color: C.blue, bg: C.blueBg,
+              icon: function() { return <IconClock color={C.blue} />; },
+              spark: sparkData.map(function(v, i) { return i + 1; }),
+            },
+            {
+              label: "Ticket Promedio",
+              val: currentMonthCount > 0 ? "$" + (currentMonthSales / currentMonthCount).toFixed(2) : "$0.00",
+              change: null,
+              changeUp: true,
+              color: C.green, bg: C.greenBg,
+              icon: function() { return <IconTrend color={C.green} />; },
+              spark: sparkData.map(function(v) { return v > 0 ? v * 0.7 : 0; }),
+            },
+            {
+              label: "Margen Neto",
+              val: netMargin + "%",
+              change: parseFloat(netMargin) > 0 ? "Profitable" : "Loss",
+              changeUp: parseFloat(netMargin) > 0,
+              color: C.yellow, bg: C.yellowBg,
+              icon: function() { return <IconPercent color={C.yellow} />; },
+              spark: salesByMonth.map(function(m) { return m.sales; }),
+            },
+          ].map(function(kpi) {
+            return (
+              <div key={kpi.label} className="kpi-card" style={{
+                background: C.surface, border: "1px solid " + C.border,
+                borderRadius: "14px", padding: "18px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
+              }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
+                  <KpiIcon bg={kpi.bg} color={kpi.color}>
+                    {kpi.icon()}
+                  </KpiIcon>
+                  <Sparkline data={kpi.spark} color={kpi.color} width={56} height={22} />
+                </div>
+                <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: "26px", color: C.darkGray, letterSpacing: "0.04em", lineHeight: 1 }}>{kpi.val}</div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "6px" }}>
+                  <span style={{ fontSize: "11px", color: C.mutedGray, textTransform: "uppercase", letterSpacing: "0.06em" }}>{kpi.label}</span>
+                  {kpi.change && (
+                    <span style={{
+                      fontSize: "10px", fontWeight: 700,
+                      color: kpi.changeUp ? C.green : C.red,
+                      background: kpi.changeUp ? C.greenBg : C.redBg,
+                      padding: "2px 7px", borderRadius: "10px",
+                    }}>
+                      {kpi.changeUp ? "\u2191" : "\u2193"} {kpi.change}
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* ROW 2: Daily + Monthly summaries */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
 
           <Card>
@@ -243,7 +416,7 @@ export default function MommeeBeeApp(props) {
           </Card>
         </div>
 
-        {/* ── ROW 2: P&L + ALERTS ── */}
+        {/* ROW 3: P&L + ALERTS */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
 
           <Card style={{ borderLeft: "3px solid " + C.primary }}>
@@ -254,26 +427,43 @@ export default function MommeeBeeApp(props) {
                 { label: "(-) COGS", val: -monthCogs, indent: 1, color: C.red, bold: false },
                 { label: "= Gross Profit", val: grossProfit, indent: 0, color: C.green, bold: true, divider: true, pct: grossMargin },
                 { label: "(-) Operating Expenses", val: -totalOpex, indent: 1, color: C.red, bold: false },
-                { label: "= NET PROFIT", val: netProfit, indent: 0, color: netProfit >= 0 ? C.green : C.red, bold: true, divider: true, pct: netMargin, highlight: true },
               ].map(function(row, i) {
                 return (
                   <div key={i}>
                     {row.divider && <div style={{ height: "1px", background: C.border, margin: "4px 0" }} />}
                     <div style={{
                       display: "flex", justifyContent: "space-between", alignItems: "center",
-                      padding: row.highlight ? "10px 12px" : "6px 12px",
-                      background: row.highlight ? C.darkGray : "transparent",
-                      borderRadius: row.highlight ? "8px" : "0",
+                      padding: "6px 12px",
                       paddingLeft: (12 + (row.indent || 0) * 16) + "px",
                     }}>
-                      <span style={{ fontSize: row.bold ? "13px" : "12px", fontWeight: row.bold ? 700 : 400, color: row.highlight ? "#ccc" : C.medGray }}>{row.label}</span>
+                      <span style={{ fontSize: row.bold ? "13px" : "12px", fontWeight: row.bold ? 700 : 400, color: C.medGray }}>{row.label}</span>
                       <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                         {row.pct && <span style={{ fontSize: "11px", fontWeight: 700, color: row.color, background: row.color + "18", padding: "2px 8px", borderRadius: "10px" }}>{row.pct}%</span>}
-                        <span style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: row.bold ? "20px" : "16px", letterSpacing: "0.04em", color: row.highlight ? C.primary : row.color }}>
+                        <span style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: row.bold ? "20px" : "16px", letterSpacing: "0.04em", color: row.color }}>
                           {row.val < 0 ? "-$" + Math.abs(row.val).toLocaleString() : "$" + row.val.toLocaleString()}
                         </span>
                       </div>
                     </div>
+                  </div>
+                );
+              })}
+            </div>
+            {/* Dark P&L footer summary bar */}
+            <div style={{ height: "1px", background: C.border, margin: "6px 0" }} />
+            <div style={{
+              background: C.darkGray, borderRadius: "10px", padding: "14px 16px", marginTop: "4px",
+              display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px",
+            }}>
+              {[
+                { label: "REVENUE", val: "$" + currentMonthSales.toLocaleString(), color: "#ccc" },
+                { label: "COGS", val: "-$" + monthCogs.toLocaleString(), color: C.red },
+                { label: "OPEX", val: "-$" + totalOpex.toLocaleString(), color: C.red },
+                { label: "NET PROFIT", val: (netProfit >= 0 ? "$" : "-$") + Math.abs(netProfit).toLocaleString(), color: C.primary },
+              ].map(function(f) {
+                return (
+                  <div key={f.label} style={{ textAlign: "center" }}>
+                    <div style={{ fontSize: "8px", color: "#666", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: "4px" }}>{f.label}</div>
+                    <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: "16px", color: f.color, letterSpacing: "0.04em" }}>{f.val}</div>
                   </div>
                 );
               })}
@@ -289,7 +479,7 @@ export default function MommeeBeeApp(props) {
                   borderRadius: "8px", padding: "10px 14px", fontSize: "12px", color: C.darkGray,
                   display: "flex", alignItems: "flex-start", gap: "8px", transition: "background 0.1s",
                 }}>
-                  <span style={{ flexShrink: 0 }}>🔴</span>
+                  <span style={{ flexShrink: 0 }}>&#128308;</span>
                   <span style={{ lineHeight: 1.4 }}>{products.filter(function(p) { return p.status === "Active" && p.stock <= (p.min_stock || 0); }).length} products below minimum stock level</span>
                 </div>
               )}
@@ -299,7 +489,7 @@ export default function MommeeBeeApp(props) {
                   borderRadius: "8px", padding: "10px 14px", fontSize: "12px", color: C.darkGray,
                   display: "flex", alignItems: "flex-start", gap: "8px", transition: "background 0.1s",
                 }}>
-                  <span style={{ flexShrink: 0 }}>🟡</span>
+                  <span style={{ flexShrink: 0 }}>&#128993;</span>
                   <span style={{ lineHeight: 1.4 }}>{sales.filter(function(s) { return s.payment_status === "Pending"; }).length} pending payments totaling ${sales.filter(function(s) { return s.payment_status === "Pending"; }).reduce(function(sum, s) { return sum + (s.total_usd || 0); }, 0).toFixed(2)}</span>
                 </div>
               )}
@@ -309,18 +499,24 @@ export default function MommeeBeeApp(props) {
                   borderRadius: "8px", padding: "10px 14px", fontSize: "12px", color: C.darkGray,
                   display: "flex", alignItems: "flex-start", gap: "8px", transition: "background 0.1s",
                 }}>
-                  <span style={{ flexShrink: 0 }}>📦</span>
+                  <span style={{ flexShrink: 0 }}>&#128230;</span>
                   <span style={{ lineHeight: 1.4 }}>{activeImports.length} active import orders in transit</span>
                 </div>
               )}
               {products.filter(function(p) { return p.status === "Active" && p.stock <= (p.min_stock || 0); }).length === 0 && sales.filter(function(s) { return s.payment_status === "Pending"; }).length === 0 && activeImports.length === 0 && (
-                <div style={{ fontSize: "13px", color: C.green, padding: "12px 0", textAlign: "center" }}>✓ All systems normal</div>
+                <div style={{
+                  display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                  padding: "30px 0", color: C.mutedGray,
+                }}>
+                  <IconCursor />
+                  <div style={{ fontSize: "13px", marginTop: "10px" }}>No alerts at this time</div>
+                </div>
               )}
             </div>
           </Card>
         </div>
 
-        {/* ── ROW 3: YEAR + IMPORTS ── */}
+        {/* ROW 4: YEAR + IMPORTS */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
 
           <Card style={{ borderLeft: "3px solid " + C.primary }}>
@@ -398,7 +594,7 @@ export default function MommeeBeeApp(props) {
                         </div>
                         <div style={{ fontSize: "12px", fontWeight: 600 }}>{imp.notes || "Import order"}</div>
                         <div style={{ fontSize: "11px", color: C.mutedGray, marginTop: "2px" }}>
-                          <span style={{ background: C.darkGray, color: C.primary, padding: "1px 6px", borderRadius: "3px", fontSize: "10px", fontWeight: 700, marginRight: "6px" }}>{imp.supplier || "—"}</span>
+                          <span style={{ background: C.darkGray, color: C.primary, padding: "1px 6px", borderRadius: "3px", fontSize: "10px", fontWeight: 700, marginRight: "6px" }}>{imp.supplier || "\u2014"}</span>
                           {imp.date}
                         </div>
                       </div>
@@ -418,7 +614,7 @@ export default function MommeeBeeApp(props) {
           </Card>
         </div>
 
-        {/* ── ROW 4: TOP PRODUCTS + PLATFORMS ── */}
+        {/* ROW 5: TOP PRODUCTS + PLATFORMS */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
 
           <Card>
@@ -477,12 +673,12 @@ export default function MommeeBeeApp(props) {
           </Card>
         </div>
 
-        {/* ── ROW 5: RECENT SALES + EXPENSES ── */}
+        {/* ROW 6: RECENT SALES + EXPENSES */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
 
           <Card>
             <SectionTitle label="Today" title="LATEST SALES"
-              action={<span onClick={function() { onNavigate("Sales"); }} style={{ fontSize: "11px", color: C.primary, fontWeight: 600, cursor: "pointer" }}>View all →</span>}
+              action={<span onClick={function() { onNavigate("Sales"); }} style={{ fontSize: "11px", color: C.primary, fontWeight: 600, cursor: "pointer" }}>View all &#8594;</span>}
             />
             <div style={{ display: "flex", flexDirection: "column", gap: "0" }}>
               {todayDbSales.length === 0 ? (
@@ -492,7 +688,7 @@ export default function MommeeBeeApp(props) {
                   <div key={s.id} className="row-hover" style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 8px", borderTop: i > 0 ? "1px solid " + C.border : "none", transition: "background 0.1s", borderRadius: "6px" }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: "12px", fontWeight: 600 }}>{s.customer_name || "Client"}</div>
-                      <div style={{ fontSize: "11px", color: C.mutedGray }}>{s.platform} · {s.payment_method}</div>
+                      <div style={{ fontSize: "11px", color: C.mutedGray }}>{s.platform} &middot; {s.payment_method}</div>
                     </div>
                     <div style={{ textAlign: "right" }}>
                       <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: "16px", color: C.primary }}>${(s.total_usd || 0).toFixed(2)}</div>
@@ -516,7 +712,7 @@ export default function MommeeBeeApp(props) {
                   background: "transparent", border: "1px solid " + C.border, color: C.mutedGray,
                   padding: "5px 14px", borderRadius: "8px", fontSize: "12px", fontWeight: 600,
                   cursor: "pointer", fontFamily: "'DM Sans',sans-serif", transition: "all 0.15s",
-                }}>＋ Add</button>
+                }}>+ Add</button>
               }
             />
 

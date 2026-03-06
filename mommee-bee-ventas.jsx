@@ -70,10 +70,14 @@ const PLATFORMS = ["Instagram", "WhatsApp", "Website", "Boutique", "Marketplace"
 const PAYMENT_METHODS = ["Mobile Payment", "Transfer", "Zelle", "Cash USD", "Cash Bs"];
 const PAYMENT_STATUSES = ["Paid", "Pending", "Partial"];
 const REGIONS = [
-  "Amazonas","Anzoátegui","Apure","Aragua","Barinas","Bolívar","Carabobo",
-  "Cojedes","Delta Amacuro","Distrito Capital","Falcón","Guárico","Lara",
-  "Mérida","Miranda","Monagas","Nueva Esparta","Portuguesa","Sucre",
-  "Táchira","Trujillo","Vargas","Yaracuy","Zulia","International"
+  "Alabama","Alaska","Arizona","Arkansas","California","Colorado","Connecticut",
+  "Delaware","Florida","Georgia","Hawaii","Idaho","Illinois","Indiana","Iowa",
+  "Kansas","Kentucky","Louisiana","Maine","Maryland","Massachusetts","Michigan",
+  "Minnesota","Mississippi","Missouri","Montana","Nebraska","Nevada","New Hampshire",
+  "New Jersey","New Mexico","New York","North Carolina","North Dakota","Ohio",
+  "Oklahoma","Oregon","Pennsylvania","Rhode Island","South Carolina","South Dakota",
+  "Tennessee","Texas","Utah","Vermont","Virginia","Washington","West Virginia",
+  "Wisconsin","Wyoming","International"
 ];
 
 const INITIAL_FORM = {
@@ -84,7 +88,7 @@ const INITIAL_FORM = {
   paymentMethod: "Zelle",
   paymentStatus: "Paid",
   saleType: "Retail",
-  region: "Distrito Capital",
+  region: "Florida",
   notes: "",
 };
 

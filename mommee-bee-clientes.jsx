@@ -49,15 +49,19 @@ const iStyle = {
   outline: "none", width: "100%",
 };
 
-const VZ_STATES = [
-  "Amazonas","Anzoátegui","Apure","Aragua","Barinas","Bolívar","Carabobo",
-  "Cojedes","Delta Amacuro","Distrito Capital","Falcón","Guárico","Lara",
-  "Mérida","Miranda","Monagas","Nueva Esparta","Portuguesa","Sucre",
-  "Táchira","Trujillo","Vargas","Yaracuy","Zulia","International",
+const US_STATES = [
+  "Alabama","Alaska","Arizona","Arkansas","California","Colorado","Connecticut",
+  "Delaware","Florida","Georgia","Hawaii","Idaho","Illinois","Indiana","Iowa",
+  "Kansas","Kentucky","Louisiana","Maine","Maryland","Massachusetts","Michigan",
+  "Minnesota","Mississippi","Missouri","Montana","Nebraska","Nevada","New Hampshire",
+  "New Jersey","New Mexico","New York","North Carolina","North Dakota","Ohio",
+  "Oklahoma","Oregon","Pennsylvania","Rhode Island","South Carolina","South Dakota",
+  "Tennessee","Texas","Utah","Vermont","Virginia","Washington","West Virginia",
+  "Wisconsin","Wyoming","International",
 ];
 
 const EMPTY_FORM = {
-  name: "", phone: "", email: "", vz_state: "Distrito Capital",
+  name: "", phone: "", email: "", vz_state: "Florida",
   tipo: "Retail", status: "Active", credit_limit: "0", credit_days: "0", notes: "",
 };
 
@@ -158,7 +162,7 @@ export default function MommeeClientes({ onNavigate, clients, setClients }) {
       setEditClient(client);
       setForm({
         name: client.name || "", phone: client.phone || "",
-        email: client.email || "", vz_state: client.vz_state || "Distrito Capital",
+        email: client.email || "", vz_state: client.vz_state || "Florida",
         tipo: client.tipo || "Retail", status: client.status || "Active",
         credit_limit: String(client.credit_limit || 0),
         credit_days: String(client.credit_days || 0),
@@ -543,7 +547,7 @@ export default function MommeeClientes({ onNavigate, clients, setClients }) {
                 <div>
                   <label style={{ fontSize: 11, color: C.mutedGray, fontWeight: 600, display: "block", marginBottom: 4 }}>Region</label>
                   <select value={form.vz_state} onChange={e => setForm(f => ({ ...f, vz_state: e.target.value }))} style={iStyle}>
-                    {VZ_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+                    {US_STATES.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>
                 <div>
