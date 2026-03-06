@@ -241,11 +241,20 @@ export default function MommeeImportaciones({ onNavigate }) {
   }
 
   return (
-    <div style={{ animation: "slideIn 0.3s ease both" }}>
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: 10, color: C.primary, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 4 }}>◆ Logistics</div>
-        <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 34, letterSpacing: "0.06em", color: C.darkGray, lineHeight: 1, margin: 0 }}>IMPORTS</h1>
-        <p style={{ color: C.mutedGray, fontSize: 12, marginTop: 4 }}>Track shipments and manage logistics</p>
+    <div style={{ fontFamily: "'DM Sans',sans-serif", color: C.darkGray }}>
+      <style>{`
+        @keyframes slideIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+        .btn-orange:hover{background:#b8895f!important;transform:translateY(-1px);box-shadow:0 4px 16px rgba(204,159,117,0.3)!important}
+        .btn-ghost:hover{border-color:#CC9F75!important;color:#CC9F75!important}
+        .row-hover:hover{background:#f8f8f7!important}
+      `}</style>
+      <div style={{ maxWidth: "1280px", margin: "0 auto" }}>
+      <div style={{ marginBottom: "24px", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+        <div>
+          <div style={{ fontSize: "10px", color: C.primary, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: "4px" }}>◆ Logistics</div>
+          <h1 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: "34px", letterSpacing: "0.06em", color: C.darkGray, lineHeight: 1, margin: 0 }}>IMPORTS</h1>
+          <p style={{ color: C.mutedGray, fontSize: "12px", marginTop: "4px" }}>{imports.length} orders · {activeImports.length} active</p>
+        </div>
       </div>
 
       {/* KPIs */}
@@ -589,6 +598,7 @@ export default function MommeeImportaciones({ onNavigate }) {
             </form>
           </Card>
         )}
+      </div>
       </div>
     </div>
   );

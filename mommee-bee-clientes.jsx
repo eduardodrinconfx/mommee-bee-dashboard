@@ -238,11 +238,23 @@ export default function MommeeClientes({ onNavigate, clients, setClients }) {
   }
 
   return (
-    <div style={{ animation: "slideIn 0.3s ease both" }}>
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: 10, color: C.primary, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 4 }}>◆ CRM</div>
-        <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 34, letterSpacing: "0.06em", color: C.darkGray, lineHeight: 1, margin: 0 }}>CLIENTS</h1>
-        <p style={{ color: C.mutedGray, fontSize: 12, marginTop: 4 }}>Customer relationship management</p>
+    <div style={{ fontFamily: "'DM Sans',sans-serif", color: C.darkGray }}>
+      <style>{`
+        @keyframes slideIn{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:translateX(0)}}
+        @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+        .client-row:hover{background:#f8f8f7!important;cursor:pointer}
+        .client-row-active{background:rgba(204,159,117,0.08)!important;border-left:3px solid #CC9F75!important}
+        .tab-btn:hover{color:#CC9F75!important}
+        .btn-orange:hover{background:#b8895f!important;transform:translateY(-1px)}
+        .btn-ghost:hover{border-color:#CC9F75!important;color:#CC9F75!important}
+      `}</style>
+      <div style={{ maxWidth: "1300px", margin: "0 auto" }}>
+      <div style={{ marginBottom: "20px", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+        <div>
+          <div style={{ fontSize: "10px", color: C.primary, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: "4px" }}>◆ Database</div>
+          <h1 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: "34px", letterSpacing: "0.06em", color: C.darkGray, lineHeight: 1, margin: 0 }}>CLIENTS</h1>
+          <p style={{ color: C.mutedGray, fontSize: "12px", marginTop: "4px" }}>{clients.length} registered clients</p>
+        </div>
       </div>
 
       {/* KPIs */}
@@ -568,6 +580,7 @@ export default function MommeeClientes({ onNavigate, clients, setClients }) {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

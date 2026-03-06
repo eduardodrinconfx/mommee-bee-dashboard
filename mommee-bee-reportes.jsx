@@ -192,12 +192,16 @@ export default function MommeeReportes({ onNavigate }) {
   }
 
   return (
-    <div style={{ animation: "slideIn 0.3s ease both" }}>
-      {/* Page Header */}
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: 10, color: C.primary, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 4 }}>◆ Analytics</div>
-        <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 34, letterSpacing: "0.06em", color: C.darkGray, lineHeight: 1, margin: 0 }}>REPORTS</h1>
-        <p style={{ color: C.mutedGray, fontSize: 12, marginTop: 4 }}>Data analytics and performance metrics</p>
+    <div style={{ fontFamily: "'DM Sans',sans-serif", color: C.darkGray }}>
+      <style>{`
+        @keyframes slideIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+        .row-hover:hover{background:#f8f8f7!important}
+      `}</style>
+      <div style={{ maxWidth: "1280px", margin: "0 auto" }}>
+      <div style={{ marginBottom: "24px" }}>
+        <div style={{ fontSize: "10px", color: C.primary, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: "4px" }}>◆ Analytics</div>
+        <h1 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: "34px", letterSpacing: "0.06em", color: C.darkGray, lineHeight: 1, margin: 0 }}>REPORTS</h1>
+        <p style={{ color: C.mutedGray, fontSize: "12px", marginTop: "4px" }}>Data analytics and performance metrics</p>
       </div>
 
       {/* Filters */}
@@ -408,6 +412,7 @@ export default function MommeeReportes({ onNavigate }) {
           </table>
         </div>
       </Card>
+      </div>
     </div>
   );
 }

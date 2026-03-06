@@ -1,663 +1,577 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./src/supabaseClient.js";
 
-const C = {
-  primary: "#CC9F75",
-  accent: "#B36A23",
-  dark: "#4C5155",
-  bg: "#EDEFEA",
-  surface: "#ffffff",
-  surfaceAlt: "#f3f3f2",
-  border: "#d0d0cf",
-  darkGray: "#1a1a1a",
-  medGray: "#4a4a4a",
-  mutedGray: "#888888",
-  green: "#16a34a",    greenBg: "#dcfce7",
-  red: "#dc2626",      redBg: "#fee2e2",
-  yellow: "#d97706",   yellowBg: "#fef3c7",
-  blue: "#2563eb",     blueBg: "#dbeafe",
-  purple: "#7c3aed",   purpleBg: "#ede9fe",
-  beige: "#D9CCBD",
-  lightBlue: "#CEDBE6",
-  gray: "#727375",
+var C = {
+  bg: "#EDEFEA", surface: "#ffffff", surfaceAlt: "#f3f3f2", border: "#d0d0cf",
+  darkGray: "#1a1a1a", medGray: "#4a4a4a", mutedGray: "#888888",
+  primary: "#CC9F75", primaryLight: "#f5efe8",
+  green: "#16a34a", greenBg: "#dcfce7",
+  red: "#dc2626", redBg: "#fee2e2",
+  yellow: "#d97706", yellowBg: "#fef3c7",
+  blue: "#2563eb", blueBg: "#dbeafe",
 };
 
-const Card = ({ children, style }) => (
-  <div style={{
-    background: C.surface,
-    border: `1px solid ${C.border}`,
-    borderRadius: 14,
-    padding: 20,
-    boxShadow: "0 1px 6px rgba(76,81,85,0.06)",
-    ...style,
-  }}>
-    {children}
-  </div>
-);
-
-const SectionTitle = ({ label, title, action }) => (
-  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 16 }}>
-    <div>
-      <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: C.primary, fontWeight: 700, marginBottom: 2 }}>
-        {label}
-      </div>
-      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: C.darkGray, letterSpacing: 1 }}>
-        {title}
-      </div>
+var Card = function(props) {
+  return (
+    <div style={{ background: C.surface, border: "1px solid " + C.border, borderRadius: "14px", padding: "20px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)", ...(props.style || {}) }}>
+      {props.children}
     </div>
-    {action && action}
-  </div>
-);
-
-const MiniBar = ({ value, max, color }) => (
-  <div style={{ background: C.surfaceAlt, borderRadius: 3, height: 6, overflow: "hidden" }}>
-    <div style={{
-      width: `${Math.min(100, max > 0 ? (value / max) * 100 : 0)}%`,
-      height: "100%",
-      background: color || C.primary,
-      borderRadius: 3,
-      transition: "width 0.4s ease",
-    }} />
-  </div>
-);
-
-const iStyle = {
-  background: C.surface,
-  border: `1px solid ${C.border}`,
-  borderRadius: 8,
-  padding: "9px 12px",
-  fontSize: 13,
-  fontFamily: "'DM Sans', sans-serif",
-  color: C.darkGray,
-  outline: "none",
-  width: "100%",
+  );
 };
 
-const ANNUAL_GOAL = 60000;
-const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-const EXP_CATEGORIES = ["Advertising","Salaries","Services","Packaging","Transport","Rent","Taxes","Other"];
+var SectionTitle = function(props) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "16px" }}>
+      <div>
+        <div style={{ fontSize: "9px", color: C.primary, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: "2px" }}>{props.label}</div>
+        <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: "20px", letterSpacing: "0.06em", color: C.darkGray }}>{props.title}</div>
+      </div>
+      {props.action}
+    </div>
+  );
+};
 
-export default function MommeeBeeApp({ onNavigate, clients, setClients }) {
-  const [sales, setSales] = useState([]);
-  const [saleItems, setSaleItems] = useState([]);
-  const [imports, setImports] = useState([]);
-  const [expenses, setExpenses] = useState([]);
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
+var MiniBar = function(props) {
+  return (
+    <div style={{ height: "6px", background: C.surfaceAlt, borderRadius: "3px", overflow: "hidden", flex: 1 }}>
+      <div style={{ height: "100%", width: (props.pct || 0) + "%", background: props.color, borderRadius: "3px", transition: "width 0.5s" }} />
+    </div>
+  );
+};
 
-  const todayStr = new Date().toISOString().split("T")[0];
-  const [expForm, setExpForm] = useState({ date: todayStr, category: "Other", description: "", amount_usd: "" });
-  const [expSaving, setExpSaving] = useState(false);
+var iStyle = {
+  width: "100%", background: C.surface, border: "1px solid " + C.border,
+  borderRadius: "8px", padding: "9px 12px", color: C.darkGray, fontSize: "13px",
+  fontFamily: "'DM Sans',sans-serif", outline: "none", boxSizing: "border-box", transition: "border-color 0.2s",
+};
 
-  useEffect(() => { loadData(); }, []);
+var MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+var EXP_CATEGORIES = ["Advertising","Salaries","Services","Packaging","Transport","Rent","Taxes","Other"];
 
-  async function loadData() {
+export default function MommeeBeeApp(props) {
+  var onNavigate = props.onNavigate || function() {};
+  var clients = props.clients || [];
+  var setClients = props.setClients || function() {};
+
+  var salesState = useState([]);       var sales = salesState[0];       var setSales = salesState[1];
+  var itemsState = useState([]);       var saleItems = itemsState[0];   var setSaleItems = itemsState[1];
+  var importsState = useState([]);     var imports = importsState[0];   var setImports = importsState[1];
+  var expensesState = useState([]);    var expenses = expensesState[0]; var setExpenses = expensesState[1];
+  var productsState = useState([]);    var products = productsState[0]; var setProducts = productsState[1];
+  var loadingState = useState(true);   var loading = loadingState[0];   var setLoading = loadingState[1];
+  var showExpFormState = useState(false); var showExpenseForm = showExpFormState[0]; var setShowExpenseForm = showExpFormState[1];
+  var expFormState = useState({ date: new Date().toISOString().split("T")[0], category: "Advertising", desc: "", amount: "", recurring: false });
+  var expForm = expFormState[0]; var setExpForm = expFormState[1];
+  var refreshState = useState(0); var refreshKey = refreshState[0]; var setRefreshKey = refreshState[1];
+
+  useEffect(function() { loadData(); }, [refreshKey]);
+
+  function loadData() {
     setLoading(true);
-    const year = new Date().getFullYear();
-    const yearStart = `${year}-01-01`;
-
-    const [sR, siR, iR, eR, cR, pR] = await Promise.all([
-      supabase.from("sales").select("*").gte("date", yearStart).order("date", { ascending: false }),
+    var year = new Date().getFullYear();
+    var start = year + "-01-01";
+    Promise.all([
+      supabase.from("sales").select("*").gte("date", start).order("date", { ascending: false }),
       supabase.from("sale_items").select("*"),
-      supabase.from("imports").select("*").gte("date", yearStart).order("date", { ascending: false }),
-      supabase.from("expenses").select("*").gte("date", yearStart).order("date", { ascending: false }),
-      supabase.from("clients").select("*"),
+      supabase.from("imports").select("*").gte("date", start).order("date", { ascending: false }),
+      supabase.from("expenses").select("*").gte("date", start).order("date", { ascending: false }),
+      supabase.from("clients").select("*").order("name"),
       supabase.from("products").select("*"),
-    ]);
-
-    if (sR.data) setSales(sR.data);
-    if (siR.data) setSaleItems(siR.data);
-    if (iR.data) setImports(iR.data);
-    if (eR.data) setExpenses(eR.data);
-    if (cR.data) setClients(cR.data);
-    if (pR.data) setProducts(pR.data);
-    setLoading(false);
+    ]).then(function(results) {
+      if (results[0].data) setSales(results[0].data);
+      if (results[1].data) setSaleItems(results[1].data);
+      if (results[2].data) setImports(results[2].data);
+      if (results[3].data) setExpenses(results[3].data.map(function(e) { return { id: e.id, date: e.date, category: e.category, desc: e.description || "", amount: e.amount_usd || 0 }; }));
+      if (results[4].data) setClients(results[4].data);
+      if (results[5].data) setProducts(results[5].data);
+      setLoading(false);
+    });
   }
 
-  async function handleExpSubmit(e) {
-    e.preventDefault();
-    if (!expForm.amount_usd || parseFloat(expForm.amount_usd) <= 0) return;
-    setExpSaving(true);
-    const { data, error } = await supabase.from("expenses").insert({
-      date: expForm.date,
-      category: expForm.category,
-      description: expForm.description,
-      amount_usd: parseFloat(expForm.amount_usd),
-    }).select().single();
-    if (!error && data) {
-      setExpenses(prev => [data, ...prev]);
-      setExpForm({ date: todayStr, category: "Other", description: "", amount_usd: "" });
-    }
-    setExpSaving(false);
-  }
+  var setE = function(k) { return function(e) { setExpForm(function(f) { var n = {}; for (var x in f) n[x] = f[x]; n[k] = e.target.value; return n; }); }; };
 
-  // ---- Computations ----
-  const now = new Date();
-  const thisMonth = now.getMonth();
-  const thisYear = now.getFullYear();
+  var saveExpense = function() {
+    var amount = parseFloat(expForm.amount) || 0;
+    if (amount <= 0) return;
+    var row = { date: expForm.date, category: expForm.category, description: expForm.desc, amount_usd: amount };
+    supabase.from("expenses").insert(row).select().single().then(function(res) {
+      var d = res.data || {};
+      setExpenses(function(ex) { return [{ id: d.id || Date.now(), date: expForm.date, category: expForm.category, desc: expForm.desc, amount: amount }].concat(ex); });
+      setExpForm({ date: new Date().toISOString().split("T")[0], category: "Advertising", desc: "", amount: "", recurring: false });
+      setShowExpenseForm(false);
+    });
+  };
 
-  const todaySales = sales.filter(s => s.date === todayStr);
-  const todayTotal = todaySales.reduce((sum, s) => sum + (parseFloat(s.total_usd) || 0), 0);
-  const todayTxns = todaySales.length;
-  const todayAvgTicket = todayTxns > 0 ? todayTotal / todayTxns : 0;
+  // ── Computations ──
+  var now = new Date();
+  var currentMonth = now.getMonth();
+  var currentYear = now.getFullYear();
+  var todayStr = now.toISOString().split("T")[0];
+  var monthNames = MONTHS;
 
-  const paymentMap = {};
-  todaySales.forEach(s => {
-    const pm = s.payment_method || "Unknown";
-    paymentMap[pm] = (paymentMap[pm] || 0) + 1;
+  // Today
+  var todayDbSales = sales.filter(function(s) { return s.date === todayStr; });
+  var todayGross = todayDbSales.reduce(function(s, v) { return s + (v.total_usd || 0); }, 0);
+  var todayCount = todayDbSales.length;
+
+  // Year totals
+  var totalYearSales = sales.reduce(function(s, v) { return s + (v.total_usd || 0); }, 0);
+
+  // Sales by month
+  var salesByMonth = monthNames.map(function(month, i) {
+    var monthSales = sales.filter(function(s) { return new Date(s.date).getMonth() === i; });
+    return { month: month, sales: monthSales.reduce(function(sum, s) { return sum + (s.total_usd || 0); }, 0), active: monthSales.length > 0 };
   });
-  const topPaymentArr = Object.entries(paymentMap).sort((a, b) => b[1] - a[1]);
-  const topPayment = topPaymentArr.length > 0 ? topPaymentArr[0][0] : "—";
 
-  const monthSales = sales.filter(s => {
-    if (!s.date) return false;
-    const d = new Date(s.date);
-    return d.getMonth() === thisMonth && d.getFullYear() === thisYear;
-  });
-  const monthGross = monthSales.reduce((sum, s) => sum + (parseFloat(s.total_usd) || 0), 0);
+  // Current month
+  var currentMonthSales = sales.filter(function(s) { return new Date(s.date).getMonth() === currentMonth; }).reduce(function(sum, s) { return sum + (s.total_usd || 0); }, 0);
+  var currentMonthSaleIds = new Set(sales.filter(function(s) { return new Date(s.date).getMonth() === currentMonth; }).map(function(s) { return s.id; }));
+  var monthItemsList = saleItems.filter(function(it) { return currentMonthSaleIds.has(it.sale_id); });
 
-  const productMap = {};
-  products.forEach(p => { productMap[p.id] = p; });
-
-  const monthSaleIds = new Set(monthSales.map(s => s.id));
-  const monthItems = saleItems.filter(si => monthSaleIds.has(si.sale_id));
-  const monthCOGS = monthItems.reduce((sum, si) => {
-    const p = productMap[si.product_id];
-    const cost = p ? (parseFloat(p.cost) || 0) : 0;
-    return sum + (si.quantity * cost);
+  // COGS
+  var productMap = {};
+  products.forEach(function(p) { productMap[p.id] = p; });
+  var monthCogs = monthItemsList.reduce(function(s, it) {
+    var p = productMap[it.product_id];
+    return s + (it.quantity || 0) * (p ? (parseFloat(p.cost) || 0) : (it.unit_cost || 0));
   }, 0);
 
-  const monthExpenses = expenses.filter(e => {
-    if (!e.date) return false;
-    const d = new Date(e.date);
-    return d.getMonth() === thisMonth && d.getFullYear() === thisYear;
+  // OPEX
+  var totalOpex = expenses.filter(function(e) { return new Date(e.date).getMonth() === currentMonth; }).reduce(function(s, e) { return s + (e.amount || 0); }, 0);
+
+  // P&L
+  var grossProfit = currentMonthSales - monthCogs;
+  var netProfit = grossProfit - totalOpex;
+  var grossMargin = monthCogs > 0 ? ((grossProfit / monthCogs) * 100).toFixed(1) : 0;
+  var netMargin = monthCogs > 0 ? ((netProfit / monthCogs) * 100).toFixed(1) : 0;
+
+  // Top products
+  var topProductsMap = {};
+  monthItemsList.forEach(function(it) {
+    var name = it.product_name || "Product";
+    if (!topProductsMap[name]) topProductsMap[name] = { name: name, sales: 0, units: 0 };
+    topProductsMap[name].sales += (it.quantity || 0) * (it.unit_price || 0);
+    topProductsMap[name].units += it.quantity || 0;
   });
-  const monthOPEX = monthExpenses.reduce((sum, e) => sum + (parseFloat(e.amount_usd) || 0), 0);
+  var topProducts = Object.values(topProductsMap).sort(function(a, b) { return b.sales - a.sales; }).slice(0, 5);
 
-  const monthGrossProfit = monthGross - monthCOGS;
-  const monthNetProfit = monthGrossProfit - monthOPEX;
-
-  const yearTotal = sales.reduce((sum, s) => sum + (parseFloat(s.total_usd) || 0), 0);
-  const goalProgress = Math.min(100, (yearTotal / ANNUAL_GOAL) * 100);
-
-  const platformMap = {};
-  monthSales.forEach(s => {
-    const plat = s.platform || "Other";
-    platformMap[plat] = (platformMap[plat] || 0) + (parseFloat(s.total_usd) || 0);
+  // Platforms
+  var platformTotals = ["Instagram","WhatsApp","Website","Boutique","Marketplace"].map(function(name) {
+    var total = sales.filter(function(s) { return s.platform === name && new Date(s.date).getMonth() === currentMonth; }).reduce(function(sum, s) { return sum + (s.total_usd || 0); }, 0);
+    return { name: name, sales: total, pct: currentMonthSales > 0 ? Math.round((total / currentMonthSales) * 100) : 0 };
   });
-  const platformArr = Object.entries(platformMap).sort((a, b) => b[1] - a[1]);
-  const maxPlatform = platformArr.length > 0 ? platformArr[0][1] : 1;
 
-  const productSalesMap = {};
-  monthItems.forEach(si => {
-    const key = si.product_code + "|||" + si.product_name;
-    if (!productSalesMap[key]) productSalesMap[key] = { revenue: 0, qty: 0 };
-    productSalesMap[key].revenue += parseFloat(si.subtotal) || (si.quantity * parseFloat(si.unit_price));
-    productSalesMap[key].qty += si.quantity;
-  });
-  const top5 = Object.entries(productSalesMap)
-    .sort((a, b) => b[1].revenue - a[1].revenue)
-    .slice(0, 5)
-    .map(([key, val]) => ({
-      name: key.split("|||")[1],
-      code: key.split("|||")[0],
-      revenue: val.revenue,
-      qty: val.qty,
-    }));
-  const maxRevenue = top5.length > 0 ? top5[0].revenue : 1;
+  // Imports
+  var activeImports = imports.filter(function(i) { return i.status !== "Received"; });
 
-  const activeImports = imports.filter(i => i.status !== "Received");
-  const activeImportValue = activeImports.reduce((sum, i) => sum + (parseFloat(i.total_cost) || 0), 0);
-
-  const monthlySummary = MONTHS.map((m, idx) => {
-    const mSales = sales.filter(s => {
-      if (!s.date) return false;
-      const d = new Date(s.date);
-      return d.getMonth() === idx && d.getFullYear() === thisYear;
-    });
-    const mTotal = mSales.reduce((sum, s) => sum + (parseFloat(s.total_usd) || 0), 0);
-    const mIds = new Set(mSales.map(s => s.id));
-    const mItems = saleItems.filter(si => mIds.has(si.sale_id));
-    const mCOGS = mItems.reduce((sum, si) => {
-      const p = productMap[si.product_id];
-      return sum + si.quantity * (p ? parseFloat(p.cost) || 0 : 0);
-    }, 0);
-    const mExp = expenses.filter(e => {
-      if (!e.date) return false;
-      const d = new Date(e.date);
-      return d.getMonth() === idx && d.getFullYear() === thisYear;
-    });
-    const mOPEX = mExp.reduce((sum, e) => sum + (parseFloat(e.amount_usd) || 0), 0);
-    return { month: m, sales: mTotal, cogs: mCOGS, opex: mOPEX, gross: mTotal - mCOGS, net: mTotal - mCOGS - mOPEX, txns: mSales.length };
-  });
-  const maxMonthSales = Math.max(...monthlySummary.map(m => m.sales), 1);
-
-  const criticalStock = products.filter(p => p.status === "Active" && p.stock <= p.min_stock);
-  const pendingPayments = sales.filter(s => s.payment_status === "Pending" || s.payment_status === "Partial");
-  const pendingTotal = pendingPayments.reduce((sum, s) => sum + (parseFloat(s.total_usd) || 0), 0);
-
-  const STATUS_COLORS = { "Ordered": C.blue, "In Transit": C.yellow, "In Customs": C.purple, "Received": C.green };
-  const STATUS_ICONS = { "Ordered": "📋", "In Transit": "🚢", "In Customs": "🏛", "Received": "✅" };
+  var marginColor = function(v) { return parseFloat(v) > 80 ? C.green : parseFloat(v) > 40 ? C.yellow : C.red; };
 
   if (loading) {
     return (
       <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "60vh" }}>
         <div style={{ textAlign: "center" }}>
-          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 36, color: C.primary, letterSpacing: 6, marginBottom: 8 }}>
-            LOADING
-          </div>
-          <div style={{ color: C.mutedGray, fontSize: 13 }}>Connecting to Supabase...</div>
+          <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: "36px", color: C.primary, letterSpacing: "6px", marginBottom: "8px" }}>LOADING</div>
+          <div style={{ color: C.mutedGray, fontSize: "13px" }}>Connecting to Supabase...</div>
         </div>
       </div>
     );
   }
 
   return (
-    <div style={{ animation: "slideIn 0.3s ease both" }}>
-      {/* PAGE HEADER */}
-      <div style={{ marginBottom: 24, display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
-        <div>
-          <div style={{ fontSize: 10, color: C.primary, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 4 }}>◆ Main Panel</div>
-          <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 34, letterSpacing: "0.06em", color: C.darkGray, lineHeight: 1, margin: 0 }}>DASHBOARD</h1>
-          <p style={{ color: C.mutedGray, fontSize: 12, marginTop: 4 }}>
-            {now.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
-          </p>
-        </div>
-        <button
-          className="btn-ghost"
-          onClick={function() { loadData(); }}
-          style={{ background: "none", border: "1px solid " + C.border, borderRadius: 8, padding: "8px 14px", fontSize: 12, color: C.medGray, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontFamily: "'DM Sans', sans-serif" }}
-        >
-          ↻ Refresh
-        </button>
-      </div>
+    <div style={{ fontFamily: "'DM Sans',sans-serif", color: C.darkGray }}>
+      <style>{"\n        @keyframes slideIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}\n        @keyframes fadeIn{from{opacity:0}to{opacity:1}}\n        @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}\n        @keyframes pop{0%{transform:scale(0.95);opacity:0}100%{transform:scale(1);opacity:1}}\n        .btn-orange:hover{background:#b8895f!important;transform:translateY(-1px);box-shadow:0 4px 16px rgba(204,159,117,0.3)!important}\n        .btn-ghost:hover{border-color:#CC9F75!important;color:#CC9F75!important}\n        .row-hover:hover{background:#f8f8f7!important}\n        .toggle-btn:hover{opacity:0.85}\n        .exp-row:hover{background:#f8f8f7!important}\n        .alert-row:hover{background:#f0f0ef!important;cursor:default}\n      "}</style>
 
-      {/* ROW 1 — Today KPIs */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 20 }}>
-        <Card>
-          <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: C.primary, fontWeight: 700, marginBottom: 4 }}>Today Sales</div>
-          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 38, color: C.darkGray, letterSpacing: 1 }}>${todayTotal.toFixed(2)}</div>
-          <div style={{ fontSize: 12, color: C.mutedGray }}>{now.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}</div>
-        </Card>
-        <Card>
-          <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: C.primary, fontWeight: 700, marginBottom: 4 }}>Transactions</div>
-          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 38, color: C.darkGray, letterSpacing: 1 }}>{todayTxns}</div>
-          <div style={{ fontSize: 12, color: C.mutedGray }}>Sales processed today</div>
-        </Card>
-        <Card>
-          <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: C.primary, fontWeight: 700, marginBottom: 4 }}>Avg Ticket</div>
-          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 38, color: C.darkGray, letterSpacing: 1 }}>${todayAvgTicket.toFixed(2)}</div>
-          <div style={{ fontSize: 12, color: C.mutedGray }}>Per transaction</div>
-        </Card>
-        <Card>
-          <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: C.primary, fontWeight: 700, marginBottom: 4 }}>Top Payment</div>
-          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 26, color: C.darkGray, letterSpacing: 1, lineHeight: 1.2 }}>{topPayment}</div>
-          <div style={{ fontSize: 12, color: C.mutedGray, marginTop: 6 }}>Most used today</div>
-        </Card>
-      </div>
+      <div style={{ maxWidth: "1280px", margin: "0 auto" }}>
 
-      {/* ROW 2 — Month KPIs + P&L */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
-        <Card>
-          <SectionTitle label={`${MONTHS[thisMonth]} ${thisYear}`} title="Monthly Performance" />
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 16 }}>
-            <div>
-              <div style={{ fontSize: 9, letterSpacing: 1.5, textTransform: "uppercase", color: C.mutedGray, marginBottom: 4 }}>Gross Sales</div>
-              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 30, color: C.darkGray }}>${monthGross.toFixed(0)}</div>
-            </div>
-            <div>
-              <div style={{ fontSize: 9, letterSpacing: 1.5, textTransform: "uppercase", color: C.mutedGray, marginBottom: 4 }}>Net Profit</div>
-              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 30, color: monthNetProfit >= 0 ? C.green : C.red }}>
-                ${monthNetProfit.toFixed(0)}
-              </div>
-            </div>
-            <div>
-              <div style={{ fontSize: 9, letterSpacing: 1.5, textTransform: "uppercase", color: C.mutedGray, marginBottom: 4 }}>Annual Goal</div>
-              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 30, color: C.darkGray }}>{goalProgress.toFixed(0)}%</div>
-            </div>
-          </div>
+        {/* PAGE HEADER */}
+        <div style={{ marginBottom: "24px", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
           <div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: C.mutedGray, marginBottom: 6 }}>
-              <span>Annual Progress (${ANNUAL_GOAL.toLocaleString()} goal)</span>
-              <span style={{ fontWeight: 700, color: C.primary }}>${yearTotal.toFixed(0)}</span>
-            </div>
-            <MiniBar value={yearTotal} max={ANNUAL_GOAL} color={C.primary} />
+            <div style={{ fontSize: "10px", color: C.primary, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: "4px" }}>◆ Main Panel</div>
+            <h1 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: "34px", letterSpacing: "0.06em", color: C.darkGray, lineHeight: 1, margin: 0 }}>DASHBOARD</h1>
+            <p style={{ color: C.mutedGray, fontSize: "12px", marginTop: "4px" }}>
+              {now.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
+            </p>
           </div>
-        </Card>
-
-        <Card>
-          <SectionTitle label="Income Statement" title="P & L — This Month" />
-          <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
-            <tbody>
-              {[
-                { label: "Gross Sales", value: monthGross, indent: 0, bold: false, sub: false },
-                { label: "Discounts", value: 0, indent: 1, bold: false, sub: true },
-                { label: "Net Sales", value: monthGross, indent: 0, bold: true, sub: false },
-                { label: "Cost of Goods (COGS)", value: monthCOGS, indent: 1, bold: false, sub: true },
-                { label: "Gross Profit", value: monthGrossProfit, indent: 0, bold: true, sub: false, colored: true },
-                { label: "Operating Expenses (OPEX)", value: monthOPEX, indent: 1, bold: false, sub: true },
-                { label: "Net Profit", value: monthNetProfit, indent: 0, bold: true, sub: false, colored: true, large: true },
-              ].map((row, i) => (
-                <tr key={i} style={{ borderBottom: `1px solid ${C.border}` }}>
-                  <td style={{
-                    padding: "7px 0",
-                    paddingLeft: row.indent * 16,
-                    color: row.colored ? (row.value >= 0 ? C.green : C.red) : (row.sub ? C.medGray : C.darkGray),
-                    fontWeight: row.bold ? 700 : 400,
-                    fontSize: row.large ? 14 : 13,
-                  }}>
-                    {row.sub && <span style={{ color: C.mutedGray, marginRight: 4 }}>−</span>}
-                    {row.label}
-                  </td>
-                  <td style={{
-                    textAlign: "right",
-                    fontFamily: "'Bebas Neue', sans-serif",
-                    fontSize: row.large ? 20 : 15,
-                    color: row.colored ? (row.value >= 0 ? C.green : C.red) : C.darkGray,
-                  }}>
-                    ${Math.abs(row.value).toFixed(2)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Card>
-      </div>
-
-      {/* ROW 3 — Platform Performance + Top Products */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
-        <Card>
-          <SectionTitle label="Sales Channels" title="Platform Performance" />
-          {platformArr.length === 0 && (
-            <div style={{ color: C.mutedGray, fontSize: 13, textAlign: "center", padding: "24px 0" }}>No sales this month yet</div>
-          )}
-          {platformArr.map(([plat, total]) => (
-            <div key={plat} style={{ marginBottom: 14 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 5 }}>
-                <span style={{ color: C.medGray, fontWeight: 500 }}>{plat}</span>
-                <span style={{ color: C.darkGray, fontWeight: 700 }}>
-                  ${total.toFixed(2)}
-                  <span style={{ color: C.mutedGray, fontWeight: 400, marginLeft: 6 }}>
-                    ({((total / (monthGross || 1)) * 100).toFixed(0)}%)
-                  </span>
-                </span>
-              </div>
-              <MiniBar value={total} max={maxPlatform} color={C.primary} />
-            </div>
-          ))}
-        </Card>
-
-        <Card>
-          <SectionTitle label="This Month" title="Top 5 Products" />
-          {top5.length === 0 && (
-            <div style={{ color: C.mutedGray, fontSize: 13, textAlign: "center", padding: "24px 0" }}>No sales data available</div>
-          )}
-          {top5.map((p, i) => (
-            <div key={i} style={{ marginBottom: 14 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 5 }}>
-                <span style={{ color: C.medGray }}>
-                  <span style={{ color: C.primary, fontWeight: 700, marginRight: 8, fontFamily: "'Bebas Neue', sans-serif", fontSize: 16 }}>#{i + 1}</span>
-                  {p.name}
-                </span>
-                <span style={{ color: C.darkGray, fontWeight: 700 }}>${p.revenue.toFixed(2)}</span>
-              </div>
-              <MiniBar value={p.revenue} max={maxRevenue} color={i === 0 ? C.primary : C.lightAmber} />
-              <div style={{ fontSize: 10, color: C.mutedGray, marginTop: 3 }}>{p.qty} units sold</div>
-            </div>
-          ))}
-        </Card>
-      </div>
-
-      {/* ROW 4 — Annual Summary */}
-      <Card style={{ marginBottom: 20 }}>
-        <SectionTitle label={`Full Year ${thisYear}`} title="Annual Summary" />
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse", minWidth: 860 }}>
-            <thead>
-              <tr style={{ borderBottom: `2px solid ${C.border}` }}>
-                {["Month", "Gross Sales", "COGS", "Gross Profit", "OPEX", "Net Profit", "Txns", "Progress"].map(h => (
-                  <th key={h} style={{
-                    padding: "8px 8px",
-                    textAlign: h === "Month" ? "left" : "right",
-                    color: C.mutedGray,
-                    fontWeight: 600,
-                    textTransform: "uppercase",
-                    fontSize: 10,
-                    letterSpacing: 0.8,
-                    whiteSpace: "nowrap",
-                  }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {monthlySummary.map((m, i) => (
-                <tr key={i} style={{
-                  borderBottom: `1px solid ${C.border}`,
-                  background: i === thisMonth ? `${C.primary}08` : "transparent",
-                }}>
-                  <td style={{ padding: "9px 8px", color: i === thisMonth ? C.primary : C.darkGray, fontWeight: i === thisMonth ? 700 : 400 }}>{m.month}</td>
-                  <td style={{ textAlign: "right", padding: "9px 8px", color: C.darkGray }}>${m.sales.toFixed(0)}</td>
-                  <td style={{ textAlign: "right", padding: "9px 8px", color: C.red }}>${m.cogs.toFixed(0)}</td>
-                  <td style={{ textAlign: "right", padding: "9px 8px", color: m.gross >= 0 ? C.darkGray : C.red }}>${m.gross.toFixed(0)}</td>
-                  <td style={{ textAlign: "right", padding: "9px 8px", color: C.yellow }}>${m.opex.toFixed(0)}</td>
-                  <td style={{ textAlign: "right", padding: "9px 8px", fontWeight: 700, color: m.net >= 0 ? C.green : C.red }}>${m.net.toFixed(0)}</td>
-                  <td style={{ textAlign: "right", padding: "9px 8px", color: C.blue }}>{m.txns}</td>
-                  <td style={{ padding: "9px 8px", minWidth: 100 }}>
-                    <MiniBar value={m.sales} max={maxMonthSales} color={i === thisMonth ? C.primary : C.beige} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <button
+            onClick={function() { setRefreshKey(function(k) { return k + 1; }); }}
+            className="btn-ghost"
+            style={{ background: "none", border: "1px solid " + C.border, borderRadius: "8px", padding: "8px 14px", fontSize: "12px", color: C.medGray, cursor: "pointer", display: "flex", alignItems: "center", gap: "6px", fontFamily: "'DM Sans',sans-serif", transition: "all 0.15s" }}
+          >
+            ↻ Refresh
+          </button>
         </div>
-      </Card>
 
-      {/* ROW 5 — Active Imports + Alerts */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
-        <Card>
-          <SectionTitle
-            label="Logistics"
-            title="Active Imports"
-            action={
-              <button onClick={() => onNavigate("Imports")} style={{ fontSize: 12, color: C.primary, background: "transparent", border: "none", cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
-                View All →
-              </button>
-            }
-          />
-          {activeImports.length === 0 && (
-            <div style={{ color: C.mutedGray, fontSize: 13, textAlign: "center", padding: "24px 0" }}>No active imports</div>
-          )}
-          {activeImports.slice(0, 5).map(imp => {
-            const color = STATUS_COLORS[imp.status] || C.mutedGray;
-            return (
-              <div key={imp.id} style={{ padding: "10px 0", borderBottom: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                  <div style={{ fontSize: 13, color: C.darkGray, fontWeight: 500 }}>{imp.supplier || "—"}</div>
-                  <div style={{ fontSize: 11, color: C.mutedGray }}>{imp.invoice_number || "No invoice"} · {imp.origin || "—"} · {imp.date}</div>
-                </div>
-                <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: 12, color, fontWeight: 600 }}>{STATUS_ICONS[imp.status] || ""} {imp.status}</div>
-                  <div style={{ fontSize: 13, color: C.darkGray, fontWeight: 700 }}>${(parseFloat(imp.total_cost) || 0).toFixed(2)}</div>
-                </div>
-              </div>
-            );
-          })}
-          {activeImports.length > 0 && (
-            <div style={{ marginTop: 14, padding: "10px 14px", background: `${C.primary}10`, borderRadius: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontSize: 12, color: C.medGray }}>{activeImports.length} active · Total investment</span>
-              <span style={{ fontSize: 14, fontWeight: 700, color: C.primary }}>${activeImportValue.toFixed(2)}</span>
-            </div>
-          )}
-        </Card>
+        {/* ── ROW 1: KPIs TODAY + MONTH ── */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
 
-        <Card>
-          <SectionTitle label="System" title="Alerts" />
-          {criticalStock.length === 0 && pendingPayments.length === 0 && (
-            <div style={{ color: C.green, fontSize: 13, textAlign: "center", padding: "24px 0" }}>
-              <div style={{ fontSize: 24, marginBottom: 8 }}>✓</div>
-              All systems normal
+          <Card>
+            <SectionTitle label="Today" title="DAILY SUMMARY" />
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "10px" }}>
+              {[
+                { label: "Gross Sales", val: "$" + todayGross.toFixed(2), color: C.primary },
+                { label: "Transactions", val: String(todayCount), color: C.blue },
+                { label: "Avg. Ticket", val: todayCount > 0 ? "$" + (todayGross / todayCount).toFixed(2) : "$0.00", color: C.green },
+                { label: "Month Sales", val: "$" + currentMonthSales.toFixed(2), color: C.medGray },
+              ].map(function(k) {
+                return (
+                  <div key={k.label} style={{ background: C.surfaceAlt, borderRadius: "10px", padding: "12px", border: "1px solid " + C.border }}>
+                    <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: "22px", color: k.color, letterSpacing: "0.04em" }}>{k.val}</div>
+                    <div style={{ fontSize: "10px", color: C.mutedGray, textTransform: "uppercase", letterSpacing: "0.08em", marginTop: "2px" }}>{k.label}</div>
+                  </div>
+                );
+              })}
             </div>
-          )}
-          {criticalStock.length > 0 && (
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 10, letterSpacing: 1.2, textTransform: "uppercase", color: C.red, fontWeight: 700, marginBottom: 8 }}>
-                Critical Stock ({criticalStock.length} products)
-              </div>
-              {criticalStock.slice(0, 4).map(p => (
-                <div key={p.id} style={{ display: "flex", justifyContent: "space-between", padding: "7px 12px", background: C.redBg, borderRadius: 6, marginBottom: 4 }}>
-                  <span style={{ fontSize: 12, color: C.darkGray }}>{p.name}</span>
-                  <span style={{ fontSize: 12, color: C.red, fontWeight: 700 }}>Stock: {p.stock} / Min: {p.min_stock}</span>
+          </Card>
+
+          <Card>
+            <SectionTitle label={monthNames[currentMonth] + " " + currentYear} title="MONTHLY SUMMARY" />
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "10px" }}>
+              {[
+                { label: "Gross Sales", val: "$" + currentMonthSales.toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 }), color: C.primary },
+                { label: "COGS", val: "-$" + monthCogs.toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 }), color: C.red },
+                { label: "Gross Profit", val: "$" + grossProfit.toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 }), color: C.green },
+                { label: "Net Profit", val: "$" + netProfit.toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 }), color: netProfit >= 0 ? C.green : C.red },
+              ].map(function(k) {
+                return (
+                  <div key={k.label} style={{ background: C.surfaceAlt, borderRadius: "10px", padding: "12px", border: "1px solid " + C.border }}>
+                    <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: "22px", color: k.color, letterSpacing: "0.04em" }}>{k.val}</div>
+                    <div style={{ fontSize: "10px", color: C.mutedGray, textTransform: "uppercase", letterSpacing: "0.08em", marginTop: "2px" }}>{k.label}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        </div>
+
+        {/* ── ROW 2: P&L + ALERTS ── */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
+
+          <Card style={{ borderLeft: "3px solid " + C.primary }}>
+            <SectionTitle label="Income Statement" title="MONTHLY P&L" />
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+              {[
+                { label: "Gross Sales", val: currentMonthSales, indent: 0, color: C.darkGray, bold: false },
+                { label: "(-) COGS", val: -monthCogs, indent: 1, color: C.red, bold: false },
+                { label: "= Gross Profit", val: grossProfit, indent: 0, color: C.green, bold: true, divider: true, pct: grossMargin },
+                { label: "(-) Operating Expenses", val: -totalOpex, indent: 1, color: C.red, bold: false },
+                { label: "= NET PROFIT", val: netProfit, indent: 0, color: netProfit >= 0 ? C.green : C.red, bold: true, divider: true, pct: netMargin, highlight: true },
+              ].map(function(row, i) {
+                return (
+                  <div key={i}>
+                    {row.divider && <div style={{ height: "1px", background: C.border, margin: "4px 0" }} />}
+                    <div style={{
+                      display: "flex", justifyContent: "space-between", alignItems: "center",
+                      padding: row.highlight ? "10px 12px" : "6px 12px",
+                      background: row.highlight ? C.darkGray : "transparent",
+                      borderRadius: row.highlight ? "8px" : "0",
+                      paddingLeft: (12 + (row.indent || 0) * 16) + "px",
+                    }}>
+                      <span style={{ fontSize: row.bold ? "13px" : "12px", fontWeight: row.bold ? 700 : 400, color: row.highlight ? "#ccc" : C.medGray }}>{row.label}</span>
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                        {row.pct && <span style={{ fontSize: "11px", fontWeight: 700, color: row.color, background: row.color + "18", padding: "2px 8px", borderRadius: "10px" }}>{row.pct}%</span>}
+                        <span style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: row.bold ? "20px" : "16px", letterSpacing: "0.04em", color: row.highlight ? C.primary : row.color }}>
+                          {row.val < 0 ? "-$" + Math.abs(row.val).toLocaleString() : "$" + row.val.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+
+          <Card>
+            <SectionTitle label="Notifications" title="ALERTS" />
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+              {products.filter(function(p) { return p.status === "Active" && p.stock <= (p.min_stock || 0); }).length > 0 && (
+                <div className="alert-row" style={{
+                  background: C.redBg, border: "1px solid " + C.red,
+                  borderRadius: "8px", padding: "10px 14px", fontSize: "12px", color: C.darkGray,
+                  display: "flex", alignItems: "flex-start", gap: "8px", transition: "background 0.1s",
+                }}>
+                  <span style={{ flexShrink: 0 }}>🔴</span>
+                  <span style={{ lineHeight: 1.4 }}>{products.filter(function(p) { return p.status === "Active" && p.stock <= (p.min_stock || 0); }).length} products below minimum stock level</span>
                 </div>
-              ))}
-              {criticalStock.length > 4 && (
-                <div style={{ fontSize: 11, color: C.red, textAlign: "right", marginTop: 4 }}>+{criticalStock.length - 4} more</div>
+              )}
+              {sales.filter(function(s) { return s.payment_status === "Pending"; }).length > 0 && (
+                <div className="alert-row" style={{
+                  background: C.yellowBg, border: "1px solid " + C.yellow,
+                  borderRadius: "8px", padding: "10px 14px", fontSize: "12px", color: C.darkGray,
+                  display: "flex", alignItems: "flex-start", gap: "8px", transition: "background 0.1s",
+                }}>
+                  <span style={{ flexShrink: 0 }}>🟡</span>
+                  <span style={{ lineHeight: 1.4 }}>{sales.filter(function(s) { return s.payment_status === "Pending"; }).length} pending payments totaling ${sales.filter(function(s) { return s.payment_status === "Pending"; }).reduce(function(sum, s) { return sum + (s.total_usd || 0); }, 0).toFixed(2)}</span>
+                </div>
+              )}
+              {activeImports.length > 0 && (
+                <div className="alert-row" style={{
+                  background: C.blueBg, border: "1px solid " + C.blue,
+                  borderRadius: "8px", padding: "10px 14px", fontSize: "12px", color: C.darkGray,
+                  display: "flex", alignItems: "flex-start", gap: "8px", transition: "background 0.1s",
+                }}>
+                  <span style={{ flexShrink: 0 }}>📦</span>
+                  <span style={{ lineHeight: 1.4 }}>{activeImports.length} active import orders in transit</span>
+                </div>
+              )}
+              {products.filter(function(p) { return p.status === "Active" && p.stock <= (p.min_stock || 0); }).length === 0 && sales.filter(function(s) { return s.payment_status === "Pending"; }).length === 0 && activeImports.length === 0 && (
+                <div style={{ fontSize: "13px", color: C.green, padding: "12px 0", textAlign: "center" }}>✓ All systems normal</div>
               )}
             </div>
-          )}
-          {pendingPayments.length > 0 && (
+          </Card>
+        </div>
+
+        {/* ── ROW 3: YEAR + IMPORTS ── */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
+
+          <Card style={{ borderLeft: "3px solid " + C.primary }}>
+            <SectionTitle label={"Year " + currentYear} title="ANNUAL SUMMARY" />
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "10px", marginBottom: "16px" }}>
+              {[
+                { label: "Sales YTD", val: "$" + totalYearSales.toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 }), color: C.primary },
+                { label: "Transactions", val: String(sales.length), color: C.medGray },
+                { label: "Clients", val: String(clients.length), color: C.green },
+              ].map(function(k) {
+                return (
+                  <div key={k.label} style={{ background: C.surfaceAlt, borderRadius: "10px", padding: "10px 12px", border: "1px solid " + C.border }}>
+                    <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: "20px", color: k.color, letterSpacing: "0.04em" }}>{k.val}</div>
+                    <div style={{ fontSize: "10px", color: C.mutedGray, textTransform: "uppercase", letterSpacing: "0.08em", marginTop: "2px" }}>{k.label}</div>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ marginBottom: "16px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
+                <span style={{ fontSize: "12px", fontWeight: 600, color: C.medGray }}>Sales YTD</span>
+                <span style={{ fontSize: "12px", fontWeight: 700, color: C.primary }}>${totalYearSales.toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </div>
+              <div style={{ height: "8px", background: C.surfaceAlt, borderRadius: "4px", overflow: "hidden", border: "1px solid " + C.border }}>
+                <div style={{ height: "100%", width: Math.min((currentMonthSales / (totalYearSales || 1)) * 100 * 12, 100) + "%", background: "linear-gradient(90deg, " + C.primary + ", #e0c4a8)", borderRadius: "4px", transition: "width 0.5s" }} />
+              </div>
+              <div style={{ fontSize: "10px", color: C.mutedGray, marginTop: "4px" }}>{sales.length} transactions recorded this year</div>
+            </div>
             <div>
-              <div style={{ fontSize: 10, letterSpacing: 1.2, textTransform: "uppercase", color: C.yellow, fontWeight: 700, marginBottom: 8 }}>
-                Pending Payments ({pendingPayments.length})
+              <div style={{ fontSize: "10px", color: C.mutedGray, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "10px" }}>Sales by Month</div>
+              <div style={{ display: "flex", gap: "4px", alignItems: "flex-end", height: "60px" }}>
+                {salesByMonth.map(function(m, i) {
+                  var maxSales = Math.max.apply(null, salesByMonth.map(function(x) { return x.sales; }).concat([1]));
+                  var h = m.active ? Math.max((m.sales / maxSales) * 52, 4) : 4;
+                  return (
+                    <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "3px" }}>
+                      <div style={{ width: "100%", height: h + "px", background: m.active ? C.primary : C.border, borderRadius: "3px 3px 0 0", transition: "height 0.4s" }} />
+                      <span style={{ fontSize: "8px", color: m.active ? C.darkGray : C.border, fontWeight: m.active ? 700 : 400 }}>{m.month}</span>
+                    </div>
+                  );
+                })}
               </div>
-              {pendingPayments.slice(0, 3).map(s => (
-                <div key={s.id} style={{ display: "flex", justifyContent: "space-between", padding: "7px 12px", background: C.yellowBg, borderRadius: 6, marginBottom: 4 }}>
-                  <span style={{ fontSize: 12, color: C.darkGray }}>{s.customer_name || "Client"} · {s.date}</span>
-                  <span style={{ fontSize: 12, color: C.yellow, fontWeight: 700 }}>${(parseFloat(s.total_usd) || 0).toFixed(2)}</span>
+            </div>
+          </Card>
+
+          <Card style={{ borderLeft: "3px solid " + C.yellow }}>
+            <SectionTitle label="Committed Capital" title="IMPORTS" />
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "10px", marginBottom: "16px" }}>
+              {[
+                { label: "In Transit", val: "$" + activeImports.reduce(function(s, i) { return s + (parseFloat(i.total_cost) || 0); }, 0).toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 }), color: C.yellow },
+                { label: "Active Orders", val: String(activeImports.length), color: C.medGray },
+                { label: "Received " + currentYear, val: String(imports.filter(function(i) { return i.status === "Received"; }).length), color: C.green },
+              ].map(function(k) {
+                return (
+                  <div key={k.label} style={{ background: C.surfaceAlt, borderRadius: "10px", padding: "10px 12px", border: "1px solid " + C.border }}>
+                    <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: "20px", color: k.color, letterSpacing: "0.04em" }}>{k.val}</div>
+                    <div style={{ fontSize: "10px", color: C.mutedGray, textTransform: "uppercase", letterSpacing: "0.08em", marginTop: "2px" }}>{k.label}</div>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ marginBottom: "14px" }}>
+              <div style={{ fontSize: "10px", color: C.mutedGray, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "10px" }}>Active Orders</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                {activeImports.length === 0 ? (
+                  <div style={{ fontSize: "13px", color: C.mutedGray, padding: "12px 0" }}>No active imports.</div>
+                ) : activeImports.map(function(imp, i) {
+                  var sc = imp.status === "In Customs" ? { color: "#7c3aed", bg: "#ede9fe" } : { color: C.yellow, bg: C.yellowBg };
+                  return (
+                    <div key={i} style={{ background: C.surfaceAlt, border: "1px solid " + C.border, borderLeft: "3px solid " + sc.color, borderRadius: "8px", padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "3px" }}>
+                          <span style={{ fontFamily: "monospace", fontSize: "11px", color: C.medGray }}>#{imp.id}</span>
+                          <span style={{ background: sc.bg, color: sc.color, padding: "1px 8px", borderRadius: "20px", fontSize: "10px", fontWeight: 700 }}>{imp.status}</span>
+                        </div>
+                        <div style={{ fontSize: "12px", fontWeight: 600 }}>{imp.notes || "Import order"}</div>
+                        <div style={{ fontSize: "11px", color: C.mutedGray, marginTop: "2px" }}>
+                          <span style={{ background: C.darkGray, color: C.primary, padding: "1px 6px", borderRadius: "3px", fontSize: "10px", fontWeight: 700, marginRight: "6px" }}>{imp.supplier || "—"}</span>
+                          {imp.date}
+                        </div>
+                      </div>
+                      <div style={{ textAlign: "right" }}>
+                        <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: "20px", color: C.yellow }}>${(parseFloat(imp.total_cost) || 0).toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                        <div style={{ fontSize: "10px", color: C.mutedGray }}>invested</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            <div style={{ background: C.darkGray, borderRadius: "8px", padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: "11px", color: "#888", textTransform: "uppercase", letterSpacing: "0.08em" }}>Total invested in imports {currentYear}</span>
+              <span style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: "20px", color: C.primary }}>${imports.reduce(function(s, i) { return s + (parseFloat(i.total_cost) || 0); }, 0).toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            </div>
+          </Card>
+        </div>
+
+        {/* ── ROW 4: TOP PRODUCTS + PLATFORMS ── */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
+
+          <Card>
+            <SectionTitle label="This Month" title="TOP 5 PRODUCTS" />
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              {topProducts.length === 0 ? (
+                <div style={{ fontSize: "13px", color: C.mutedGray, padding: "12px 0" }}>No sales recorded this month.</div>
+              ) : topProducts.map(function(p, i) {
+                return (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                    <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: "20px", color: i === 0 ? C.primary : C.border, width: "24px", textAlign: "center" }}>{i + 1}</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+                        <span style={{ fontSize: "13px", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "180px" }}>{p.name}</span>
+                        <span style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: "16px", color: C.primary }}>${p.sales.toFixed(2)}</span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <MiniBar pct={(p.sales / (topProducts[0].sales || 1)) * 100} color={i === 0 ? C.primary : C.border} />
+                        <span style={{ fontSize: "10px", color: C.mutedGray, whiteSpace: "nowrap" }}>{p.units} u.</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+
+          <Card>
+            <SectionTitle label="Sales by Channel" title="PLATFORMS" />
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              {platformTotals.filter(function(p) { return p.sales > 0; }).length === 0 ? (
+                <div style={{ fontSize: "13px", color: C.mutedGray, padding: "12px 0" }}>No sales data yet.</div>
+              ) : platformTotals.map(function(p, i) {
+                var colors = [C.primary, C.blue, C.green, C.yellow, "#7c3aed"];
+                return (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                    <div style={{ width: "10px", height: "10px", borderRadius: "50%", background: colors[i], flexShrink: 0 }} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+                        <span style={{ fontSize: "13px", fontWeight: 600 }}>{p.name}</span>
+                        <div style={{ display: "flex", gap: "10px" }}>
+                          <span style={{ fontSize: "12px", color: C.mutedGray }}>{p.pct}%</span>
+                          <span style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: "16px", color: colors[i] }}>${p.sales.toFixed(2)}</span>
+                        </div>
+                      </div>
+                      <MiniBar pct={p.pct} color={colors[i]} />
+                    </div>
+                  </div>
+                );
+              })}
+              <div style={{ borderTop: "1px solid " + C.border, paddingTop: "10px", display: "flex", justifyContent: "space-between" }}>
+                <span style={{ fontSize: "12px", color: C.mutedGray }}>Total gross sales</span>
+                <span style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: "18px", color: C.primary }}>${currentMonthSales.toLocaleString()}</span>
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* ── ROW 5: RECENT SALES + EXPENSES ── */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+
+          <Card>
+            <SectionTitle label="Today" title="LATEST SALES"
+              action={<span onClick={function() { onNavigate("Sales"); }} style={{ fontSize: "11px", color: C.primary, fontWeight: 600, cursor: "pointer" }}>View all →</span>}
+            />
+            <div style={{ display: "flex", flexDirection: "column", gap: "0" }}>
+              {todayDbSales.length === 0 ? (
+                <div style={{ fontSize: "13px", color: C.mutedGray, padding: "12px 0" }}>No sales recorded today.</div>
+              ) : todayDbSales.slice(0, 8).map(function(s, i) {
+                return (
+                  <div key={s.id} className="row-hover" style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 8px", borderTop: i > 0 ? "1px solid " + C.border : "none", transition: "background 0.1s", borderRadius: "6px" }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: "12px", fontWeight: 600 }}>{s.customer_name || "Client"}</div>
+                      <div style={{ fontSize: "11px", color: C.mutedGray }}>{s.platform} · {s.payment_method}</div>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: "16px", color: C.primary }}>${(s.total_usd || 0).toFixed(2)}</div>
+                    </div>
+                    <span style={{
+                      background: s.payment_status === "Paid" ? C.greenBg : C.yellowBg,
+                      color: s.payment_status === "Paid" ? C.green : C.yellow,
+                      border: "1px solid " + (s.payment_status === "Paid" ? C.green : C.yellow),
+                      padding: "2px 8px", borderRadius: "20px", fontSize: "10px", fontWeight: 700,
+                    }}>{s.payment_status}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+
+          <Card>
+            <SectionTitle label="Operating Expenses" title="MONTHLY EXPENSES"
+              action={
+                <button onClick={function() { setShowExpenseForm(function(v) { return !v; }); }} className="btn-ghost" style={{
+                  background: "transparent", border: "1px solid " + C.border, color: C.mutedGray,
+                  padding: "5px 14px", borderRadius: "8px", fontSize: "12px", fontWeight: 600,
+                  cursor: "pointer", fontFamily: "'DM Sans',sans-serif", transition: "all 0.15s",
+                }}>＋ Add</button>
+              }
+            />
+
+            {showExpenseForm && (
+              <div style={{ background: C.primaryLight, border: "1px solid " + C.primary, borderRadius: "10px", padding: "14px", marginBottom: "14px", animation: "slideIn 0.2s ease" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "10px" }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: C.mutedGray, marginBottom: "4px" }}>Category</label>
+                    <select value={expForm.category} onChange={setE("category")} style={Object.assign({}, iStyle, { appearance: "none" })}>
+                      {EXP_CATEGORIES.map(function(c) { return <option key={c}>{c}</option>; })}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: C.mutedGray, marginBottom: "4px" }}>Amount ($)</label>
+                    <input type="number" value={expForm.amount} onChange={setE("amount")} placeholder="0.00" style={iStyle} step="0.01" />
+                  </div>
+                  <div style={{ gridColumn: "span 2" }}>
+                    <label style={{ display: "block", fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: C.mutedGray, marginBottom: "4px" }}>Description</label>
+                    <input value={expForm.desc} onChange={setE("desc")} placeholder="Ex: Instagram Ads March" style={iStyle} />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: C.mutedGray, marginBottom: "4px" }}>Date</label>
+                    <input type="date" value={expForm.date} onChange={setE("date")} style={iStyle} />
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", paddingTop: "18px" }}>
+                    <input type="checkbox" id="recurring" checked={expForm.recurring} onChange={function(e) { setExpForm(function(f) { var n = {}; for (var x in f) n[x] = f[x]; n.recurring = e.target.checked; return n; }); }} style={{ width: "16px", height: "16px", accentColor: C.primary }} />
+                    <label htmlFor="recurring" style={{ fontSize: "12px", color: C.medGray, cursor: "pointer" }}>Monthly recurring expense</label>
+                  </div>
                 </div>
-              ))}
-              <div style={{ fontSize: 12, color: C.medGray, marginTop: 8, textAlign: "right" }}>
-                Total pending: <strong style={{ color: C.yellow }}>${pendingTotal.toFixed(2)}</strong>
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <button onClick={saveExpense} className="btn-orange" style={{ background: C.primary, border: "none", color: "#fff", padding: "8px 18px", borderRadius: "8px", fontSize: "12px", fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", transition: "all 0.15s" }}>Save Expense</button>
+                  <button onClick={function() { setShowExpenseForm(false); }} style={{ background: "transparent", border: "1px solid " + C.border, color: C.mutedGray, padding: "8px 14px", borderRadius: "8px", fontSize: "12px", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>Cancel</button>
+                </div>
               </div>
-            </div>
-          )}
-        </Card>
-      </div>
-
-      {/* ROW 6 — Recent Sales Today + Expense Form */}
-      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 20 }}>
-        <Card>
-          <SectionTitle
-            label="Today"
-            title="Recent Sales"
-            action={
-              <button onClick={() => onNavigate("Sales")} style={{ fontSize: 12, background: C.primary, color: "white", border: "none", borderRadius: 6, padding: "6px 14px", cursor: "pointer", fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>
-                + New Sale
-              </button>
-            }
-          />
-          {todaySales.length === 0 && (
-            <div style={{ color: C.mutedGray, fontSize: 13, textAlign: "center", padding: "24px 0" }}>No sales recorded today</div>
-          )}
-          {todaySales.length > 0 && (
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
-                <thead>
-                  <tr style={{ borderBottom: `2px solid ${C.border}` }}>
-                    {["#", "Customer", "Platform", "Payment", "Status", "Total"].map(h => (
-                      <th key={h} style={{ padding: "6px 8px", textAlign: "left", color: C.mutedGray, fontWeight: 600, fontSize: 10, textTransform: "uppercase", letterSpacing: 0.8 }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {todaySales.slice(0, 10).map(s => {
-                    const ss = s.payment_status === "Paid" ? { color: C.green, bg: C.greenBg } :
-                               s.payment_status === "Pending" ? { color: C.red, bg: C.redBg } :
-                               { color: C.yellow, bg: C.yellowBg };
-                    return (
-                      <tr key={s.id} style={{ borderBottom: `1px solid ${C.border}` }}>
-                        <td style={{ padding: "9px 8px", color: C.mutedGray, fontSize: 11 }}>#{s.id}</td>
-                        <td style={{ padding: "9px 8px", color: C.darkGray, fontWeight: 500 }}>{s.customer_name || "—"}</td>
-                        <td style={{ padding: "9px 8px", color: C.medGray }}>{s.platform}</td>
-                        <td style={{ padding: "9px 8px", color: C.medGray }}>{s.payment_method}</td>
-                        <td style={{ padding: "9px 8px" }}>
-                          <span style={{ background: ss.bg, color: ss.color, borderRadius: 4, padding: "2px 8px", fontSize: 11, fontWeight: 600 }}>
-                            {s.payment_status}
-                          </span>
-                        </td>
-                        <td style={{ padding: "9px 8px", color: C.darkGray, fontWeight: 700 }}>${(parseFloat(s.total_usd) || 0).toFixed(2)}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </Card>
-
-        <Card>
-          <SectionTitle label="Operations" title="Log Expense" />
-          <form onSubmit={handleExpSubmit}>
-            <div style={{ display: "grid", gap: 10 }}>
-              <input
-                type="date"
-                value={expForm.date}
-                onChange={e => setExpForm(f => ({ ...f, date: e.target.value }))}
-                style={iStyle}
-              />
-              <select
-                value={expForm.category}
-                onChange={e => setExpForm(f => ({ ...f, category: e.target.value }))}
-                style={iStyle}
-              >
-                {EXP_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-              <input
-                type="text"
-                placeholder="Description (optional)"
-                value={expForm.description}
-                onChange={e => setExpForm(f => ({ ...f, description: e.target.value }))}
-                style={iStyle}
-              />
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                placeholder="Amount (USD)"
-                value={expForm.amount_usd}
-                onChange={e => setExpForm(f => ({ ...f, amount_usd: e.target.value }))}
-                style={iStyle}
-              />
-              <button
-                type="submit"
-                disabled={expSaving}
-                style={{
-                  background: expSaving ? C.mutedGray : C.primary,
-                  color: "white",
-                  border: "none",
-                  borderRadius: 8,
-                  padding: "10px 16px",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: expSaving ? "not-allowed" : "pointer",
-                  fontFamily: "'DM Sans', sans-serif",
-                }}
-              >
-                {expSaving ? "Saving..." : "Log Expense"}
-              </button>
-            </div>
-          </form>
-
-          <div style={{ marginTop: 18 }}>
-            <div style={{ fontSize: 10, letterSpacing: 1.5, textTransform: "uppercase", color: C.mutedGray, marginBottom: 10 }}>
-              Recent Expenses · {MONTHS[thisMonth]}
-            </div>
-            {monthExpenses.slice(0, 5).map(e => (
-              <div key={e.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "7px 0", borderBottom: `1px solid ${C.border}` }}>
-                <span style={{ color: C.medGray }}>
-                  <span style={{ fontWeight: 600, color: C.darkGray }}>{e.category}</span>
-                  {e.description ? ` · ${e.description}` : ""}
-                </span>
-                <span style={{ color: C.red, fontWeight: 600 }}>−${(parseFloat(e.amount_usd) || 0).toFixed(2)}</span>
-              </div>
-            ))}
-            {monthExpenses.length === 0 && (
-              <div style={{ color: C.mutedGray, fontSize: 12 }}>No expenses this month</div>
             )}
-            <div style={{ marginTop: 10, fontSize: 13, fontWeight: 700, color: C.darkGray, textAlign: "right" }}>
-              Total OPEX: <span style={{ color: C.red }}>${monthOPEX.toFixed(2)}</span>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "0", maxHeight: "300px", overflowY: "auto" }}>
+              {expenses.filter(function(e) { return new Date(e.date).getMonth() === currentMonth; }).map(function(e, i) {
+                return (
+                  <div key={e.id} className="exp-row" style={{ display: "flex", alignItems: "center", gap: "10px", padding: "9px 8px", borderTop: i > 0 ? "1px solid " + C.border : "none", transition: "background 0.1s", borderRadius: "6px" }}>
+                    <span style={{ background: C.surfaceAlt, border: "1px solid " + C.border, color: C.medGray, padding: "2px 8px", borderRadius: "20px", fontSize: "10px", fontWeight: 600, whiteSpace: "nowrap" }}>{e.category}</span>
+                    <div style={{ flex: 1, fontSize: "12px", color: C.medGray }}>{e.desc}</div>
+                    <span style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: "16px", color: C.red, letterSpacing: "0.04em" }}>-${e.amount}</span>
+                  </div>
+                );
+              })}
             </div>
-          </div>
-        </Card>
+
+            <div style={{ borderTop: "2px solid " + C.border, marginTop: "10px", paddingTop: "10px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: "12px", fontWeight: 700, color: C.medGray, textTransform: "uppercase", letterSpacing: "0.06em" }}>Total Expenses</span>
+              <span style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: "22px", color: C.red, letterSpacing: "0.04em" }}>-${totalOpex.toLocaleString()}</span>
+            </div>
+          </Card>
+        </div>
+
       </div>
     </div>
   );

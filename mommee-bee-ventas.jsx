@@ -45,16 +45,25 @@ const SectionTitle = ({ label, title, action }) => (
   </div>
 );
 
+const Divider = ({ title }) => (
+  <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
+    <div style={{ width: "3px", height: "14px", background: C.primary, borderRadius: "2px" }} />
+    <span style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", color: C.darkGray }}>{title}</span>
+    <div style={{ flex: 1, height: "1px", background: C.border }} />
+  </div>
+);
+
+const Field = ({ label, children, span }) => (
+  <div style={{ gridColumn: span ? "span " + span : undefined }}>
+    <label style={{ display: "block", fontSize: "10px", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: C.mutedGray, marginBottom: "6px" }}>{label}</label>
+    {children}
+  </div>
+);
+
 const iStyle = {
-  background: C.surface,
-  border: `1px solid ${C.border}`,
-  borderRadius: 8,
-  padding: "9px 12px",
-  fontSize: 13,
-  fontFamily: "'DM Sans', sans-serif",
-  color: C.darkGray,
-  outline: "none",
-  width: "100%",
+  width: "100%", background: C.surface, border: `1px solid ${C.border}`,
+  borderRadius: "8px", padding: "10px 12px", color: C.darkGray, fontSize: "13px",
+  fontFamily: "'DM Sans',sans-serif", outline: "none", boxSizing: "border-box", transition: "border-color 0.2s",
 };
 
 const PLATFORMS = ["Instagram", "WhatsApp", "Website", "Boutique", "Marketplace"];
@@ -260,13 +269,24 @@ export default function MommeeVentas({ onNavigate, clients, setClients }) {
   };
 
   return (
-    <div style={{ animation: "slideIn 0.3s ease both" }}>
+    <div style={{ fontFamily: "'DM Sans',sans-serif", color: C.darkGray }}>
+      <style>{`
+        @keyframes slideIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+        @keyframes pop{0%{transform:scale(0.95);opacity:0}100%{transform:scale(1);opacity:1}}
+        .btn-orange:hover{background:#b8895f!important;transform:translateY(-1px);box-shadow:0 4px 16px rgba(204,159,117,0.3)!important}
+        .btn-ghost:hover{border-color:#CC9F75!important;color:#CC9F75!important}
+        .row-hover:hover{background:#f8f8f7!important}
+      `}</style>
+
+      <div style={{ maxWidth: "1280px", margin: "0 auto" }}>
+
       {/* PAGE HEADER */}
-      <div style={{ marginBottom: 24, display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+      <div style={{ marginBottom: "24px", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
         <div>
-          <div style={{ fontSize: 10, color: C.primary, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 4 }}>◆ Sales Module</div>
-          <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 34, letterSpacing: "0.06em", color: C.darkGray, lineHeight: 1, margin: 0 }}>SALES</h1>
-          <p style={{ color: C.mutedGray, fontSize: 12, marginTop: 4 }}>Manage and track all transactions</p>
+          <div style={{ fontSize: "10px", color: C.primary, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: "4px" }}>◆ Transactions</div>
+          <h1 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: "34px", letterSpacing: "0.06em", color: C.darkGray, lineHeight: 1, margin: 0 }}>SALES</h1>
+          <p style={{ color: C.mutedGray, fontSize: "12px", marginTop: "4px" }}>{sales.length} transactions · ${sales.reduce((s, v) => s + (parseFloat(v.total_usd) || 0), 0).toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} total</p>
         </div>
       </div>
 
@@ -663,6 +683,8 @@ export default function MommeeVentas({ onNavigate, clients, setClients }) {
           </Card>
         </div>
       )}
+
+      </div>
     </div>
   );
 }
