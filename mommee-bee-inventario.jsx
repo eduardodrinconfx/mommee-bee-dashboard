@@ -92,6 +92,7 @@ export default function MommeeInventario(props) {
   function saveEdit() {
     setSaving(true);
     supabase.from("products").update({
+      code: editData.code,
       name: editData.name,
       category: editData.category,
       cost: parseFloat(editData.cost) || 0,
@@ -353,7 +354,12 @@ export default function MommeeInventario(props) {
                     var isEditing = editingId === p.id;
                     return (
                       <tr key={p.id} style={isCritical ? { background: "rgba(255,59,48,.03)" } : {}}>
-                        <td><span className="bdg bdg-or">{p.code}</span></td>
+                        <td>
+                          {isEditing
+                            ? <input className="form-input" type="text" value={editData.code} onChange={setED("code")} style={{ padding: "5px 8px", width: "120px" }} />
+                            : <span className="bdg bdg-or">{p.code}</span>
+                          }
+                        </td>
                         <td>
                           {isEditing
                             ? <input className="form-input" type="text" value={editData.name} onChange={setED("name")} style={{ padding: "5px 8px" }} />
@@ -374,7 +380,12 @@ export default function MommeeInventario(props) {
                             : <span style={isCritical ? { color: "var(--red)", fontWeight: 600 } : {}}>{p.stock}{isCritical ? " !" : ""}</span>
                           }
                         </td>
-                        <td className="mono" style={{ color: "var(--muted)", fontSize: "11px" }}>{p.min_stock}</td>
+                        <td>
+                          {isEditing
+                            ? <input className="form-input" type="number" min="0" value={editData.min_stock} onChange={setED("min_stock")} style={{ padding: "5px 8px", width: "60px" }} />
+                            : <span className="mono" style={{ color: "var(--muted)", fontSize: "11px" }}>{p.min_stock}</span>
+                          }
+                        </td>
                         <td>
                           {isEditing
                             ? <input className="form-input" type="number" step="0.01" min="0" value={editData.cost} onChange={setED("cost")} style={{ padding: "5px 8px", width: "80px" }} />
