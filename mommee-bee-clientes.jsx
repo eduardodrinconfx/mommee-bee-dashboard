@@ -1,55 +1,9 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./src/supabaseClient.js";
 
-const C = {
-  primary: "#CC9F75",
-  accent: "#B36A23",
-  dark: "#4C5155",
-  bg: "#EDEFEA",
-  surface: "#ffffff",
-  surfaceAlt: "#f3f3f2",
-  border: "#d0d0cf",
-  darkGray: "#1a1a1a",
-  medGray: "#4a4a4a",
-  mutedGray: "#888888",
-  green: "#16a34a",    greenBg: "#dcfce7",
-  red: "#dc2626",      redBg: "#fee2e2",
-  yellow: "#d97706",   yellowBg: "#fef3c7",
-  blue: "#2563eb",     blueBg: "#dbeafe",
-  purple: "#7c3aed",   purpleBg: "#ede9fe",
-  beige: "#D9CCBD",
-  lightBlue: "#CEDBE6",
-  gray: "#727375",
-};
+var MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
-const Card = ({ children, style }) => (
-  <div style={{
-    background: C.surface, border: `1px solid ${C.border}`,
-    borderRadius: 14, padding: 20,
-    boxShadow: "0 1px 6px rgba(76,81,85,0.06)", ...style,
-  }}>
-    {children}
-  </div>
-);
-
-const SectionTitle = ({ label, title, action }) => (
-  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 16 }}>
-    <div>
-      <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: C.primary, fontWeight: 700, marginBottom: 2 }}>{label}</div>
-      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: C.darkGray, letterSpacing: 1 }}>{title}</div>
-    </div>
-    {action && action}
-  </div>
-);
-
-const iStyle = {
-  background: C.surface, border: `1px solid ${C.border}`,
-  borderRadius: 8, padding: "9px 12px", fontSize: 13,
-  fontFamily: "'DM Sans', sans-serif", color: C.darkGray,
-  outline: "none", width: "100%",
-};
-
-const US_STATES = [
+var US_STATES = [
   "Alabama","Alaska","Arizona","Arkansas","California","Colorado","Connecticut",
   "Delaware","Florida","Georgia","Hawaii","Idaho","Illinois","Indiana","Iowa",
   "Kansas","Kentucky","Louisiana","Maine","Maryland","Massachusetts","Michigan",
@@ -60,7 +14,7 @@ const US_STATES = [
   "Wisconsin","Wyoming","International",
 ];
 
-const EMPTY_FORM = {
+var EMPTY_FORM = {
   name: "", phone: "", email: "", vz_state: "Florida",
   tipo: "Retail", status: "Active", credit_limit: "0", credit_days: "0", notes: "",
 };
@@ -76,48 +30,58 @@ function daysSince(dateStr) {
   return Math.floor((Date.now() - new Date(dateStr + "T00:00:00")) / 86400000);
 }
 
-const ABC_STYLE = {
-  A: { color: C.green,  bg: C.greenBg,  label: "🥇 A" },
-  B: { color: C.blue,   bg: C.blueBg,   label: "🥈 B" },
-  C: { color: C.mutedGray, bg: C.surfaceAlt, label: "🥉 C" },
-};
+function setFormField(setForm, key) {
+  return function(e) {
+    setForm(function(f) { var n = {}; for (var k in f) n[k] = f[k]; n[key] = e.target.value; return n; });
+  };
+}
 
-export default function MommeeClientes({ onNavigate, clients, setClients }) {
-  const [sales, setSales] = useState([]);
-  const [saleItems, setSaleItems] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [filterTipo, setFilterTipo] = useState("All");
-  const [filterStatus, setFilterStatus] = useState("Active");
-  const [sortBy, setSortBy] = useState("total");
-  const [showModal, setShowModal] = useState(false);
-  const [editClient, setEditClient] = useState(null);
-  const [form, setForm] = useState(EMPTY_FORM);
-  const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState("");
-  const [selectedClient, setSelectedClient] = useState(null);
-  const [loadingDetail, setLoadingDetail] = useState(false);
-  const [expandedSale, setExpandedSale] = useState(null);
+export default function MommeeClientes(props) {
+  var onNavigate = props.onNavigate || function() {};
+  var clients = props.clients || [];
+  var setClients = props.setClients || function() {};
 
-  useEffect(() => { loadData(); }, []);
+  var salesState = useState([]);          var sales = salesState[0];            var setSales = salesState[1];
+  var siState = useState({});             var saleItems = siState[0];           var setSaleItems = siState[1];
+  var loadingState = useState(true);      var loading = loadingState[0];        var setLoading = loadingState[1];
+  var searchState = useState("");         var search = searchState[0];          var setSearch = searchState[1];
+  var ftState = useState("All");          var filterTipo = ftState[0];          var setFilterTipo = ftState[1];
+  var fsState = useState("Active");       var filterStatus = fsState[0];        var setFilterStatus = fsState[1];
+  var sbState = useState("total");        var sortBy = sbState[0];             var setSortBy = sbState[1];
+  var smState = useState(false);          var showModal = smState[0];           var setShowModal = smState[1];
+  var ecState = useState(null);           var editClient = ecState[0];          var setEditClient = ecState[1];
+  var formState = useState(EMPTY_FORM);   var form = formState[0];             var setForm = formState[1];
+  var savingState = useState(false);      var saving = savingState[0];          var setSaving = savingState[1];
+  var msgState = useState("");            var msg = msgState[0];                var setMsg = msgState[1];
+  var scState = useState(null);           var selectedClient = scState[0];      var setSelectedClient = scState[1];
+  var ldState = useState(false);          var loadingDetail = ldState[0];       var setLoadingDetail = ldState[1];
+  var esState = useState(null);           var expandedSale = esState[0];        var setExpandedSale = esState[1];
 
-  async function loadData() {
+  var now = new Date();
+  var cm = now.getMonth();
+  var cy = now.getFullYear();
+  var dateLabel = MONTHS[cm] + " " + (now.getDate() < 10 ? "0" : "") + now.getDate() + ", " + cy;
+
+  useEffect(function() { loadData(); }, []);
+
+  function loadData() {
     setLoading(true);
-    const [cR, sR] = await Promise.all([
+    Promise.all([
       supabase.from("clients").select("*"),
       supabase.from("sales").select("id,customer_name,client_id,total_usd,date,sale_type,platform,payment_method,payment_status"),
-    ]);
-    if (cR.data) setClients(cR.data);
-    if (sR.data) setSales(sR.data);
-    setLoading(false);
+    ]).then(function(results) {
+      if (results[0].data) setClients(results[0].data);
+      if (results[1].data) setSales(results[1].data);
+      setLoading(false);
+    });
   }
 
   function clientSalesOf(client) {
-    const cName = (client.name || "").toLowerCase().trim();
-    return sales.filter(s => {
+    var cName = (client.name || "").toLowerCase().trim();
+    return sales.filter(function(s) {
       if (s.client_id != null && s.client_id === client.id) return true;
       if (!s.client_id) {
-        const sName = (s.customer_name || "").toLowerCase().trim();
+        var sName = (s.customer_name || "").toLowerCase().trim();
         return sName === cName;
       }
       return false;
@@ -125,36 +89,38 @@ export default function MommeeClientes({ onNavigate, clients, setClients }) {
   }
 
   function getMetrics(client) {
-    const cSales = clientSalesOf(client).sort((a, b) => (b.date || "").localeCompare(a.date || ""));
-    const total = cSales.reduce((s, x) => s + (parseFloat(x.total_usd) || 0), 0);
-    const count = cSales.length;
-    const avgTicket = count > 0 ? total / count : 0;
-    const lastSale = cSales[0];
-    const ds = lastSale ? daysSince(lastSale.date) : null;
-    const pendingSales = cSales.filter(s => s.payment_status === "Pending" || s.payment_status === "Partial");
-    const pendingTotal = pendingSales.reduce((s, x) => s + (parseFloat(x.total_usd) || 0), 0);
-    return { cSales, total, count, avgTicket, lastSale, daysSince: ds, pendingSales, pendingTotal };
+    var cSales = clientSalesOf(client).sort(function(a, b) { return (b.date || "").localeCompare(a.date || ""); });
+    var total = cSales.reduce(function(s, x) { return s + (parseFloat(x.total_usd) || 0); }, 0);
+    var count = cSales.length;
+    var avgTicket = count > 0 ? total / count : 0;
+    var lastSale = cSales[0];
+    var ds = lastSale ? daysSince(lastSale.date) : null;
+    var pendingSales = cSales.filter(function(s) { return s.payment_status === "Pending" || s.payment_status === "Partial"; });
+    var pendingTotal = pendingSales.reduce(function(s, x) { return s + (parseFloat(x.total_usd) || 0); }, 0);
+    return { cSales: cSales, total: total, count: count, avgTicket: avgTicket, lastSale: lastSale, daysSince: ds, pendingSales: pendingSales, pendingTotal: pendingTotal };
   }
 
-  async function selectClient(client) {
+  function selectClient(client) {
     if (selectedClient && selectedClient.id === client.id) {
       setSelectedClient(null); setSaleItems({}); setExpandedSale(null); return;
     }
     setSelectedClient(client); setExpandedSale(null);
-    const cSales = clientSalesOf(client);
+    var cSales = clientSalesOf(client);
     if (cSales.length === 0) { setSaleItems({}); return; }
     setLoadingDetail(true);
-    const { data: items } = await supabase.from("sale_items")
+    supabase.from("sale_items")
       .select("sale_id,product_name,quantity,unit_price")
-      .in("sale_id", cSales.map(s => s.id));
-    const grouped = {};
-    (items || []).forEach(it => {
-      const key = String(it.sale_id);
-      if (!grouped[key]) grouped[key] = [];
-      grouped[key].push(it);
-    });
-    setSaleItems(grouped);
-    setLoadingDetail(false);
+      .in("sale_id", cSales.map(function(s) { return s.id; }))
+      .then(function(res) {
+        var grouped = {};
+        (res.data || []).forEach(function(it) {
+          var key = String(it.sale_id);
+          if (!grouped[key]) grouped[key] = [];
+          grouped[key].push(it);
+        });
+        setSaleItems(grouped);
+        setLoadingDetail(false);
+      });
   }
 
   function openModal(client) {
@@ -175,12 +141,12 @@ export default function MommeeClientes({ onNavigate, clients, setClients }) {
     setShowModal(true);
   }
 
-  async function handleSave(e) {
-    e.preventDefault();
+  function handleSave(e) {
+    if (e) e.preventDefault();
     if (!form.name) { setMsg("Name is required."); return; }
     setSaving(true); setMsg("");
 
-    const payload = {
+    var payload = {
       name: form.name, phone: form.phone, email: form.email,
       vz_state: form.vz_state, tipo: form.tipo, status: form.status,
       credit_limit: parseFloat(form.credit_limit) || 0,
@@ -190,401 +156,438 @@ export default function MommeeClientes({ onNavigate, clients, setClients }) {
     };
 
     if (editClient) {
-      const { data, error } = await supabase.from("clients").update(payload).eq("id", editClient.id).select().single();
-      if (!error && data) {
-        setClients(prev => prev.map(c => c.id === editClient.id ? data : c));
-        setSelectedClient(data);
-        setMsg("Client updated!");
-      } else if (error) { setMsg("Error: " + error.message); }
+      supabase.from("clients").update(payload).eq("id", editClient.id).select().single().then(function(res) {
+        if (!res.error && res.data) {
+          setClients(function(prev) { return prev.map(function(c) { return c.id === editClient.id ? res.data : c; }); });
+          setSelectedClient(res.data);
+          setMsg("Client updated!");
+        } else if (res.error) { setMsg("Error: " + res.error.message); }
+        setSaving(false);
+        setTimeout(function() { setMsg(""); setShowModal(false); }, 1500);
+      });
     } else {
-      const { data, error } = await supabase.from("clients").insert({ ...payload, created_at: new Date().toISOString() }).select().single();
-      if (!error && data) {
-        setClients(prev => [...prev, data]);
-        setMsg("Client created!");
-      } else if (error) { setMsg("Error: " + error.message); }
+      payload.created_at = new Date().toISOString();
+      supabase.from("clients").insert(payload).select().single().then(function(res) {
+        if (!res.error && res.data) {
+          setClients(function(prev) { return prev.concat([res.data]); });
+          setMsg("Client created!");
+        } else if (res.error) { setMsg("Error: " + res.error.message); }
+        setSaving(false);
+        setTimeout(function() { setMsg(""); setShowModal(false); }, 1500);
+      });
     }
-
-    setSaving(false);
-    setTimeout(() => { setMsg(""); setShowModal(false); }, 1500);
   }
 
   // Filtered + sorted clients
-  const allClientsWithMetrics = clients.map(c => ({ ...c, metrics: getMetrics(c) }));
+  var allClientsWithMetrics = clients.map(function(c) {
+    var copy = {}; for (var k in c) copy[k] = c[k];
+    copy.metrics = getMetrics(c);
+    return copy;
+  });
 
-  const filtered = allClientsWithMetrics.filter(c => {
+  var filtered = allClientsWithMetrics.filter(function(c) {
     if (filterTipo !== "All" && c.tipo !== filterTipo) return false;
     if (filterStatus && c.status !== filterStatus) return false;
     if (search) {
-      const q = search.toLowerCase();
+      var q = search.toLowerCase();
       return (c.name || "").toLowerCase().includes(q) ||
              (c.phone || "").includes(q) ||
              (c.vz_state || "").toLowerCase().includes(q);
     }
     return true;
-  }).sort((a, b) => {
+  }).sort(function(a, b) {
     if (sortBy === "total") return b.metrics.total - a.metrics.total;
     if (sortBy === "name") return (a.name || "").localeCompare(b.name || "");
     if (sortBy === "recent") return (b.metrics.lastSale ? b.metrics.lastSale.date : "") > (a.metrics.lastSale ? a.metrics.lastSale.date : "") ? 1 : -1;
     return 0;
   });
 
-  const totalClients = clients.filter(c => c.status === "Active").length;
-  const totalRevenue = allClientsWithMetrics.reduce((s, c) => s + c.metrics.total, 0);
-  const totalPending = allClientsWithMetrics.reduce((s, c) => s + c.metrics.pendingTotal, 0);
-  const classA = allClientsWithMetrics.filter(c => getABC(c.metrics.total) === "A").length;
+  var totalClients = clients.filter(function(c) { return c.status === "Active"; }).length;
+  var totalRevenue = allClientsWithMetrics.reduce(function(s, c) { return s + c.metrics.total; }, 0);
+  var totalPending = allClientsWithMetrics.reduce(function(s, c) { return s + c.metrics.pendingTotal; }, 0);
+  var classA = allClientsWithMetrics.filter(function(c) { return getABC(c.metrics.total) === "A"; }).length;
 
   if (loading) {
     return (
-      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "60vh" }}>
-        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 32, color: C.primary, letterSpacing: 4 }}>LOADING...</div>
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "80vh" }}>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontFamily: "var(--mono)", fontSize: "28px", fontWeight: 500, color: "var(--accent)", letterSpacing: "-0.04em", marginBottom: "8px" }}>LOADING</div>
+          <div style={{ color: "var(--muted)", fontSize: "13px" }}>Loading clients...</div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div style={{ fontFamily: "'DM Sans',sans-serif", color: C.darkGray }}>
-      <style>{`
-        @keyframes slideIn{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:translateX(0)}}
-        @keyframes fadeIn{from{opacity:0}to{opacity:1}}
-        .client-row:hover{background:#f8f8f7!important;cursor:pointer}
-        .client-row-active{background:rgba(204,159,117,0.08)!important;border-left:3px solid #CC9F75!important}
-        .tab-btn:hover{color:#CC9F75!important}
-        .btn-orange:hover{background:#b8895f!important;transform:translateY(-1px)}
-        .btn-ghost:hover{border-color:#CC9F75!important;color:#CC9F75!important}
-      `}</style>
-      <div style={{ maxWidth: "1300px", margin: "0 auto" }}>
-      <div style={{ marginBottom: "20px", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
-        <div>
-          <div style={{ fontSize: "10px", color: C.primary, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: "4px" }}>◆ Database</div>
-          <h1 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: "34px", letterSpacing: "0.06em", color: C.darkGray, lineHeight: 1, margin: 0 }}>CLIENTS</h1>
-          <p style={{ color: C.mutedGray, fontSize: "12px", marginTop: "4px" }}>{clients.length} registered clients</p>
+    <div style={{ minHeight: "100vh" }}>
+      <style>{"\n        .client-row:hover{background:rgba(0,0,0,.015)!important;cursor:pointer}\n      "}</style>
+
+      {/* Header */}
+      <div className="hdr">
+        <div className="hdr-left">
+          <div className="hdr-title">Clientes</div>
+          <div className="hdr-date">{dateLabel}</div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <button className="btn btn-primary" onClick={function() { openModal(null); }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "12px", height: "12px" }}>
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            New Client
+          </button>
+          <div className="hdr-search">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input type="text" placeholder="Search clients..." value={search} onChange={function(e) { setSearch(e.target.value); }} />
+          </div>
         </div>
       </div>
 
-      {/* KPIs */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16, marginBottom: 20 }}>
-        <Card>
-          <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: C.primary, fontWeight: 700, marginBottom: 4 }}>Active Clients</div>
-          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 38, color: C.darkGray }}>{totalClients}</div>
-          <div style={{ fontSize: 12, color: C.mutedGray }}>{clients.length} total registered</div>
-        </Card>
-        <Card>
-          <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: C.primary, fontWeight: 700, marginBottom: 4 }}>Total Revenue</div>
-          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 32, color: C.darkGray }}>${totalRevenue.toFixed(0)}</div>
-          <div style={{ fontSize: 12, color: C.mutedGray }}>All time</div>
-        </Card>
-        <Card>
-          <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: C.primary, fontWeight: 700, marginBottom: 4 }}>Pending Payments</div>
-          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 32, color: C.red }}>${totalPending.toFixed(0)}</div>
-          <div style={{ fontSize: 12, color: C.mutedGray }}>To collect</div>
-        </Card>
-        <Card>
-          <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: C.primary, fontWeight: 700, marginBottom: 4 }}>Class A Clients</div>
-          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 38, color: C.green }}>{classA}</div>
-          <div style={{ fontSize: 12, color: C.mutedGray }}>+$5,000 total</div>
-        </Card>
-      </div>
+      <div className="content">
 
-      <div style={{ display: "grid", gridTemplateColumns: selectedClient ? "1fr 380px" : "1fr", gap: 20 }}>
-        {/* Client List */}
-        <Card>
-          <SectionTitle
-            label="CRM"
-            title={`Clients (${filtered.length})`}
-            action={
-              <button className="btn-primary" onClick={() => openModal(null)} style={{ background: C.primary, color: "white", border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
-                + New Client
-              </button>
-            }
-          />
-
-          {/* Filters */}
-          <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
-            <input type="text" placeholder="Search name, phone, region..." value={search} onChange={e => setSearch(e.target.value)} style={{ ...iStyle, width: 260 }} />
-            <select value={filterTipo} onChange={e => setFilterTipo(e.target.value)} style={{ ...iStyle, width: 140 }}>
-              <option value="All">All Types</option>
-              <option value="Retail">Retail</option>
-              <option value="Wholesale">Wholesale</option>
-            </select>
-            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ ...iStyle, width: 140 }}>
-              <option value="">All Status</option>
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
-            </select>
-            <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={{ ...iStyle, width: 150 }}>
-              <option value="total">Sort: Revenue</option>
-              <option value="name">Sort: Name</option>
-              <option value="recent">Sort: Recent</option>
-            </select>
-          </div>
-
-          {/* Table */}
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
-              <thead>
-                <tr style={{ borderBottom: `2px solid ${C.border}` }}>
-                  {["Client", "Type", "Region", "Revenue", "Orders", "Pending", "Last Sale", "ABC"].map(h => (
-                    <th key={h} style={{ padding: "7px 10px", textAlign: "left", color: C.mutedGray, fontWeight: 600, fontSize: 10, textTransform: "uppercase", letterSpacing: 0.8, whiteSpace: "nowrap" }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.length === 0 && (
-                  <tr><td colSpan={8} style={{ padding: 24, textAlign: "center", color: C.mutedGray }}>No clients found</td></tr>
-                )}
-                {filtered.map(c => {
-                  const m = c.metrics;
-                  const abc = getABC(m.total);
-                  const abcS = ABC_STYLE[abc];
-                  const isSelected = selectedClient && selectedClient.id === c.id;
-                  const hasPending = m.pendingTotal > 0;
-                  const creditPct = c.credit_limit > 0 ? Math.min(100, (m.pendingTotal / c.credit_limit) * 100) : 0;
-                  return (
-                    <tr
-                      key={c.id}
-                      className="row-hover"
-                      onClick={() => selectClient(c)}
-                      style={{
-                        borderBottom: `1px solid ${C.border}`,
-                        background: isSelected ? `${C.primary}08` : "transparent",
-                        cursor: "pointer",
-                      }}
-                    >
-                      <td style={{ padding: "10px 10px" }}>
-                        <div style={{ fontWeight: 600, color: C.darkGray }}>{c.name}</div>
-                        <div style={{ fontSize: 11, color: C.mutedGray }}>{c.phone || "—"}</div>
-                      </td>
-                      <td style={{ padding: "10px 10px" }}>
-                        <span style={{ background: c.tipo === "Wholesale" ? C.purpleBg : C.blueBg, color: c.tipo === "Wholesale" ? C.purple : C.blue, borderRadius: 4, padding: "2px 7px", fontSize: 11, fontWeight: 600 }}>
-                          {c.tipo}
-                        </span>
-                      </td>
-                      <td style={{ padding: "10px 10px", color: C.medGray }}>{c.vz_state || "—"}</td>
-                      <td style={{ padding: "10px 10px", fontWeight: 700, color: C.darkGray }}>${m.total.toFixed(0)}</td>
-                      <td style={{ padding: "10px 10px", color: C.medGray }}>{m.count}</td>
-                      <td style={{ padding: "10px 10px" }}>
-                        {hasPending
-                          ? <span style={{ color: C.yellow, fontWeight: 700 }}>${m.pendingTotal.toFixed(0)}</span>
-                          : <span style={{ color: C.green }}>—</span>
-                        }
-                      </td>
-                      <td style={{ padding: "10px 10px", color: C.medGray, whiteSpace: "nowrap" }}>
-                        {m.lastSale ? (
-                          <span>
-                            {m.lastSale.date}
-                            {m.daysSince !== null && m.daysSince > 30 && (
-                              <span style={{ color: C.red, marginLeft: 4 }}>({m.daysSince}d)</span>
-                            )}
-                          </span>
-                        ) : "—"}
-                      </td>
-                      <td style={{ padding: "10px 10px" }}>
-                        <span style={{ background: abcS.bg, color: abcS.color, borderRadius: 4, padding: "2px 8px", fontSize: 11, fontWeight: 700 }}>
-                          {abcS.label}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-
-        {/* Client Detail Panel */}
-        {selectedClient && (
-          <Card>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
-              <div>
-                <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: C.primary, fontWeight: 700, marginBottom: 4 }}>Client Profile</div>
-                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: C.darkGray, letterSpacing: 1 }}>{selectedClient.name}</div>
-                <div style={{ fontSize: 12, color: C.mutedGray }}>{selectedClient.phone || ""} {selectedClient.email ? "· " + selectedClient.email : ""}</div>
+        {/* KPIs */}
+        <div className="g4">
+          {[
+            { label: "Clientes Activos", val: String(totalClients), sub: clients.length + " total",
+              icon: function() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>; } },
+            { label: "Revenue Total", val: "$" + totalRevenue.toFixed(0), sub: "All time",
+              icon: function() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>; } },
+            { label: "Pagos Pendientes", val: "$" + totalPending.toFixed(0), sub: "To collect", red: totalPending > 0,
+              icon: function() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>; } },
+            { label: "Clientes Clase A", val: String(classA), sub: "+$5,000 total", green: true,
+              icon: function() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>; } },
+          ].map(function(kpi) {
+            return (
+              <div key={kpi.label} className="kpi">
+                <div className="kpi-ico">{kpi.icon()}</div>
+                <div className="kpi-lbl">{kpi.label}</div>
+                <div className="kpi-val" style={kpi.red ? { color: "var(--red)" } : kpi.green ? { color: "var(--green)" } : {}}>{kpi.val}</div>
+                <div style={{ fontFamily: "var(--mono)", fontSize: "10px", color: "var(--muted)", marginTop: "4px" }}>{kpi.sub}</div>
               </div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button onClick={() => openModal(selectedClient)} style={{ background: C.surfaceAlt, border: `1px solid ${C.border}`, borderRadius: 7, padding: "6px 12px", fontSize: 12, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>Edit</button>
-                <button onClick={() => setSelectedClient(null)} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: C.mutedGray }}>×</button>
+            );
+          })}
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: selectedClient ? "1fr 380px" : "1fr", gap: "16px" }}>
+          {/* Client List */}
+          <div className="card">
+            <div className="card-h">
+              <div>
+                <div className="card-t">CRM — Clientes</div>
+                <div className="card-sub">{filtered.length + " clients"}</div>
               </div>
             </div>
+            <div className="card-b" style={{ paddingTop: "12px" }}>
+              {/* Filters */}
+              <div style={{ display: "flex", gap: "10px", marginBottom: "14px", flexWrap: "wrap" }}>
+                <select className="form-input" value={filterTipo} onChange={function(e) { setFilterTipo(e.target.value); }} style={{ width: "140px" }}>
+                  <option value="All">All Types</option>
+                  <option value="Retail">Retail</option>
+                  <option value="Wholesale">Wholesale</option>
+                </select>
+                <select className="form-input" value={filterStatus} onChange={function(e) { setFilterStatus(e.target.value); }} style={{ width: "140px" }}>
+                  <option value="">All Status</option>
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
+                </select>
+                <select className="form-input" value={sortBy} onChange={function(e) { setSortBy(e.target.value); }} style={{ width: "150px" }}>
+                  <option value="total">Sort: Revenue</option>
+                  <option value="name">Sort: Name</option>
+                  <option value="recent">Sort: Recent</option>
+                </select>
+              </div>
 
-            {/* Metrics */}
-            {(() => {
-              const m = getMetrics(selectedClient);
-              const abc = getABC(m.total);
-              const abcS = ABC_STYLE[abc];
-              const creditPct = selectedClient.credit_limit > 0 ? Math.min(100, (m.pendingTotal / selectedClient.credit_limit) * 100) : 0;
-              return (
-                <>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
-                    {[
-                      { label: "Total Revenue", value: `$${m.total.toFixed(2)}`, color: C.darkGray },
-                      { label: "Orders", value: m.count, color: C.darkGray },
-                      { label: "Avg Ticket", value: `$${m.avgTicket.toFixed(2)}`, color: C.darkGray },
-                      { label: "Pending", value: m.pendingTotal > 0 ? `$${m.pendingTotal.toFixed(2)}` : "Clear", color: m.pendingTotal > 0 ? C.yellow : C.green },
-                    ].map(({ label, value, color }) => (
-                      <div key={label} style={{ padding: "10px 14px", background: C.surfaceAlt, borderRadius: 8 }}>
-                        <div style={{ fontSize: 10, color: C.mutedGray, fontWeight: 600, marginBottom: 2, textTransform: "uppercase" }}>{label}</div>
-                        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color }}>{value}</div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                    <span style={{ background: abcS.bg, color: abcS.color, borderRadius: 6, padding: "4px 12px", fontSize: 12, fontWeight: 700 }}>
-                      {abcS.label} Client
-                    </span>
-                    <span style={{ background: selectedClient.tipo === "Wholesale" ? C.purpleBg : C.blueBg, color: selectedClient.tipo === "Wholesale" ? C.purple : C.blue, borderRadius: 6, padding: "4px 12px", fontSize: 12, fontWeight: 700 }}>
-                      {selectedClient.tipo}
-                    </span>
-                    <span style={{ fontSize: 12, color: C.medGray }}>{selectedClient.vz_state || "—"}</span>
-                  </div>
-
-                  {selectedClient.credit_limit > 0 && (
-                    <div style={{ marginBottom: 14 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: C.mutedGray, marginBottom: 5 }}>
-                        <span>Credit Used</span>
-                        <span style={{ color: creditPct > 80 ? C.red : C.darkGray, fontWeight: 700 }}>
-                          ${m.pendingTotal.toFixed(0)} / ${selectedClient.credit_limit}
-                        </span>
-                      </div>
-                      <div style={{ background: C.surfaceAlt, borderRadius: 3, height: 6, overflow: "hidden" }}>
-                        <div style={{ width: `${creditPct}%`, height: "100%", background: creditPct > 80 ? C.red : C.primary, borderRadius: 3, transition: "width 0.4s ease" }} />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Purchase history */}
-                  <div style={{ fontSize: 10, letterSpacing: 1.5, textTransform: "uppercase", color: C.mutedGray, fontWeight: 600, marginBottom: 10 }}>
-                    Purchase History ({m.count})
-                  </div>
-
-                  {loadingDetail && <div style={{ color: C.mutedGray, fontSize: 13, textAlign: "center", padding: "12px 0" }}>Loading...</div>}
-
-                  <div style={{ maxHeight: 300, overflowY: "auto" }}>
-                    {m.cSales.slice(0, 10).map(s => {
-                      const items = saleItems[String(s.id)] || [];
-                      const isExp = expandedSale === s.id;
-                      const ss = s.payment_status === "Paid"
-                        ? { color: C.green, bg: C.greenBg }
-                        : s.payment_status === "Pending"
-                        ? { color: C.red, bg: C.redBg }
-                        : { color: C.yellow, bg: C.yellowBg };
+              {/* Table */}
+              <div style={{ overflowX: "auto" }}>
+                <table className="dt">
+                  <thead>
+                    <tr>
+                      <th>Client</th>
+                      <th>Type</th>
+                      <th>Region</th>
+                      <th>Revenue</th>
+                      <th>Orders</th>
+                      <th>Pending</th>
+                      <th>Last Sale</th>
+                      <th>ABC</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.length === 0 && (
+                      <tr><td colSpan={8} style={{ textAlign: "center", color: "var(--muted)", padding: "24px" }}>No clients found</td></tr>
+                    )}
+                    {filtered.map(function(c) {
+                      var m = c.metrics;
+                      var abc = getABC(m.total);
+                      var isSelected = selectedClient && selectedClient.id === c.id;
+                      var abcClass = abc === "A" ? "bdg-gn" : abc === "B" ? "bdg-bl" : "bdg-or";
+                      var typeClass = c.tipo === "Wholesale" ? "bdg-bl" : "bdg-or";
                       return (
-                        <div key={s.id} style={{ borderBottom: `1px solid ${C.border}`, marginBottom: 4 }}>
-                          <div
-                            onClick={() => setExpandedSale(isExp ? null : s.id)}
-                            style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", cursor: "pointer" }}
-                          >
-                            <div>
-                              <div style={{ fontSize: 12, color: C.darkGray, fontWeight: 500 }}>{s.date} · {s.platform}</div>
-                              <div style={{ fontSize: 11, color: C.mutedGray }}>{s.payment_method}</div>
-                            </div>
-                            <div style={{ textAlign: "right" }}>
-                              <div style={{ fontSize: 13, fontWeight: 700, color: C.darkGray }}>${(parseFloat(s.total_usd) || 0).toFixed(2)}</div>
-                              <span style={{ background: ss.bg, color: ss.color, borderRadius: 4, padding: "1px 7px", fontSize: 10, fontWeight: 600 }}>{s.payment_status}</span>
-                            </div>
-                          </div>
-                          {isExp && items.length > 0 && (
-                            <div style={{ paddingBottom: 8 }}>
-                              {items.map((it, i) => (
-                                <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, padding: "3px 10px", background: C.surfaceAlt, borderRadius: 4, marginBottom: 2 }}>
-                                  <span style={{ color: C.medGray }}>{it.product_name}</span>
-                                  <span style={{ color: C.darkGray }}>{it.quantity} × ${parseFloat(it.unit_price).toFixed(2)}</span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
+                        <tr
+                          key={c.id}
+                          className="client-row"
+                          onClick={function() { selectClient(c); }}
+                          style={isSelected ? { background: "var(--accent-light)" } : {}}
+                        >
+                          <td>
+                            <div style={{ fontWeight: 600, letterSpacing: "-0.01em" }}>{c.name}</div>
+                            <div style={{ fontFamily: "var(--mono)", fontSize: "10px", color: "var(--muted)" }}>{c.phone || "—"}</div>
+                          </td>
+                          <td><span className={"bdg " + typeClass}>{c.tipo}</span></td>
+                          <td>{c.vz_state || "—"}</td>
+                          <td className="mono" style={{ fontWeight: 600, fontSize: "12px" }}>{"$" + m.total.toFixed(0)}</td>
+                          <td className="mono" style={{ fontSize: "11px" }}>{m.count}</td>
+                          <td>
+                            {m.pendingTotal > 0
+                              ? <span style={{ color: "var(--orange)", fontWeight: 600, fontFamily: "var(--mono)", fontSize: "11px" }}>{"$" + m.pendingTotal.toFixed(0)}</span>
+                              : <span style={{ color: "var(--green)", fontFamily: "var(--mono)", fontSize: "11px" }}>—</span>
+                            }
+                          </td>
+                          <td style={{ whiteSpace: "nowrap" }}>
+                            {m.lastSale ? (
+                              <span>
+                                <span style={{ fontFamily: "var(--mono)", fontSize: "11px" }}>{m.lastSale.date}</span>
+                                {m.daysSince !== null && m.daysSince > 30 && (
+                                  <span style={{ color: "var(--red)", marginLeft: "4px", fontFamily: "var(--mono)", fontSize: "10px" }}>{"(" + m.daysSince + "d)"}</span>
+                                )}
+                              </span>
+                            ) : <span style={{ color: "var(--muted)" }}>—</span>}
+                          </td>
+                          <td><span className={"bdg " + abcClass}>{abc}</span></td>
+                        </tr>
                       );
                     })}
-                  </div>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
 
-                  {selectedClient.notes && (
-                    <div style={{ marginTop: 12, padding: "10px 14px", background: C.surfaceAlt, borderRadius: 8, fontSize: 12, color: C.medGray }}>
-                      <span style={{ fontWeight: 700, color: C.darkGray }}>Notes: </span>{selectedClient.notes}
+          {/* Client Detail Panel */}
+          {selectedClient && (
+            <div className="card">
+              <div className="card-h">
+                <div>
+                  <div className="card-t">{selectedClient.name}</div>
+                  <div className="card-sub">{(selectedClient.phone || "") + (selectedClient.email ? " · " + selectedClient.email : "")}</div>
+                </div>
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <button className="btn" onClick={function() { openModal(selectedClient); }} style={{ padding: "4px 10px" }}>Edit</button>
+                  <button className="btn" onClick={function() { setSelectedClient(null); }} style={{ padding: "4px 10px" }}>×</button>
+                </div>
+              </div>
+              <div className="card-b">
+                {(function() {
+                  var m = getMetrics(selectedClient);
+                  var abc = getABC(m.total);
+                  var abcClass = abc === "A" ? "bdg-gn" : abc === "B" ? "bdg-bl" : "bdg-or";
+                  var creditPct = selectedClient.credit_limit > 0 ? Math.min(100, (m.pendingTotal / selectedClient.credit_limit) * 100) : 0;
+                  return (
+                    <div>
+                      {/* Metrics grid */}
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "14px" }}>
+                        {[
+                          { label: "Total Revenue", value: "$" + m.total.toFixed(2) },
+                          { label: "Orders", value: String(m.count) },
+                          { label: "Avg Ticket", value: "$" + m.avgTicket.toFixed(2) },
+                          { label: "Pending", value: m.pendingTotal > 0 ? "$" + m.pendingTotal.toFixed(2) : "Clear", color: m.pendingTotal > 0 ? "var(--orange)" : "var(--green)" },
+                        ].map(function(row) {
+                          return (
+                            <div key={row.label} style={{ padding: "10px 14px", background: "rgba(0,0,0,.02)", borderRadius: "var(--rs)" }}>
+                              <div className="form-label" style={{ marginBottom: "2px" }}>{row.label}</div>
+                              <div className="mono" style={{ fontSize: "18px", fontWeight: 600, color: row.color || "var(--dark)" }}>{row.value}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      <div style={{ display: "flex", gap: "8px", marginBottom: "12px", flexWrap: "wrap" }}>
+                        <span className={"bdg " + abcClass}>{abc + " Client"}</span>
+                        <span className={"bdg " + (selectedClient.tipo === "Wholesale" ? "bdg-bl" : "bdg-or")}>{selectedClient.tipo}</span>
+                        <span className="bdg" style={{ background: "rgba(0,0,0,.04)", color: "var(--muted)" }}>{selectedClient.vz_state || "—"}</span>
+                      </div>
+
+                      {selectedClient.credit_limit > 0 && (
+                        <div style={{ marginBottom: "14px" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "5px" }}>
+                            <span style={{ fontFamily: "var(--mono)", fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--muted)" }}>Credit Used</span>
+                            <span className="mono" style={{ fontSize: "11px", fontWeight: 600, color: creditPct > 80 ? "var(--red)" : "var(--dark)" }}>
+                              {"$" + m.pendingTotal.toFixed(0) + " / $" + selectedClient.credit_limit}
+                            </span>
+                          </div>
+                          <div style={{ background: "rgba(0,0,0,.04)", borderRadius: "3px", height: "5px", overflow: "hidden" }}>
+                            <div style={{ width: creditPct + "%", height: "100%", background: creditPct > 80 ? "var(--red)" : "var(--accent)", borderRadius: "3px", transition: "width 0.4s var(--ease)" }} />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Purchase history */}
+                      <div className="form-label" style={{ marginBottom: "10px" }}>
+                        {"Purchase History (" + m.count + ")"}
+                      </div>
+
+                      {loadingDetail && <div style={{ color: "var(--muted)", fontSize: "13px", textAlign: "center", padding: "12px 0" }}>Loading...</div>}
+
+                      <div style={{ maxHeight: "300px", overflowY: "auto" }}>
+                        {m.cSales.slice(0, 10).map(function(s) {
+                          var items = saleItems[String(s.id)] || [];
+                          var isExp = expandedSale === s.id;
+                          var statusClass = s.payment_status === "Paid" ? "bdg-gn" : s.payment_status === "Pending" ? "bdg-rd" : "bdg-or";
+                          return (
+                            <div key={s.id} style={{ borderBottom: "1px solid var(--sep)", marginBottom: "4px" }}>
+                              <div
+                                onClick={function() { setExpandedSale(isExp ? null : s.id); }}
+                                style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", cursor: "pointer" }}
+                              >
+                                <div>
+                                  <div style={{ fontSize: "12px", fontWeight: 500, letterSpacing: "-0.01em" }}>{s.date + " · " + s.platform}</div>
+                                  <div style={{ fontFamily: "var(--mono)", fontSize: "10px", color: "var(--muted)" }}>{s.payment_method}</div>
+                                </div>
+                                <div style={{ textAlign: "right" }}>
+                                  <div className="mono" style={{ fontSize: "13px", fontWeight: 600 }}>{"$" + (parseFloat(s.total_usd) || 0).toFixed(2)}</div>
+                                  <span className={"bdg " + statusClass}>{s.payment_status}</span>
+                                </div>
+                              </div>
+                              {isExp && items.length > 0 && (
+                                <div style={{ paddingBottom: "8px" }}>
+                                  {items.map(function(it, i) {
+                                    return (
+                                      <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", padding: "3px 10px", background: "rgba(0,0,0,.02)", borderRadius: "4px", marginBottom: "2px" }}>
+                                        <span>{it.product_name}</span>
+                                        <span className="mono" style={{ fontSize: "10px" }}>{it.quantity + " × $" + parseFloat(it.unit_price).toFixed(2)}</span>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {selectedClient.notes && (
+                        <div style={{ marginTop: "12px", padding: "10px 14px", background: "rgba(0,0,0,.02)", borderRadius: "var(--rs)", fontSize: "12px", color: "var(--muted)" }}>
+                          <span style={{ fontWeight: 600, color: "var(--dark)" }}>Notes: </span>{selectedClient.notes}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </>
-              );
-            })()}
-          </Card>
-        )}
+                  );
+                })()}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Summary Bar */}
+        <div className="summary-bar" style={{ marginTop: "16px" }}>
+          <div className="summary-item"><div className="summary-label">Active Clients</div><div className="summary-value">{String(totalClients)}</div></div>
+          <div className="summary-item"><div className="summary-label">Revenue</div><div className="summary-value">{"$" + totalRevenue.toFixed(0)}</div></div>
+          <div className="summary-item"><div className="summary-label">Pending</div><div className="summary-value" style={{ color: "var(--red)" }}>{"$" + totalPending.toFixed(0)}</div></div>
+          <div className="summary-spacer" />
+          <div className="summary-item"><div className="summary-label">Class A</div><div className="summary-value accent">{String(classA)}</div></div>
+        </div>
       </div>
 
       {/* Modal */}
       {showModal && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 500, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ background: C.surface, borderRadius: 16, padding: 28, width: 560, maxWidth: "95vw", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.25)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 500, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}>
+          <div style={{
+            background: "var(--white)", borderRadius: "var(--r)", padding: "28px", width: "560px",
+            maxWidth: "95vw", maxHeight: "90vh", overflowY: "auto", boxShadow: "var(--sh-lg)",
+            animation: "slideIn 0.2s ease",
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
               <div>
-                <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: C.primary, fontWeight: 700, marginBottom: 2 }}>CRM</div>
-                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: C.darkGray }}>
+                <div className="form-label" style={{ marginBottom: "2px" }}>CRM</div>
+                <div style={{ fontSize: "17px", fontWeight: 600, letterSpacing: "-0.03em" }}>
                   {editClient ? "Edit Client" : "New Client"}
                 </div>
               </div>
-              <button onClick={() => setShowModal(false)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: C.mutedGray }}>×</button>
+              <button className="btn" onClick={function() { setShowModal(false); }} style={{ padding: "4px 10px" }}>×</button>
             </div>
 
             {msg && (
-              <div style={{ padding: "10px 14px", borderRadius: 8, marginBottom: 14, background: msg.includes("Error") ? C.redBg : C.greenBg, color: msg.includes("Error") ? C.red : C.green, fontSize: 13, fontWeight: 600 }}>
+              <div style={{
+                padding: "10px 14px", borderRadius: "var(--rs)", marginBottom: "14px",
+                background: msg.includes("Error") ? "rgba(255,59,48,.07)" : "rgba(52,199,89,.07)",
+                color: msg.includes("Error") ? "var(--red)" : "var(--green)",
+                fontSize: "13px", fontWeight: 500, fontFamily: "var(--mono)",
+              }}>
                 {msg}
               </div>
             )}
 
             <form onSubmit={handleSave}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
-                <div style={{ gridColumn: "span 2" }}>
-                  <label style={{ fontSize: 11, color: C.mutedGray, fontWeight: 600, display: "block", marginBottom: 4 }}>Full Name *</label>
-                  <input type="text" placeholder="e.g. María García" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={iStyle} />
+              <div className="form-row" style={{ gridTemplateColumns: "1fr" }}>
+                <div className="form-group">
+                  <label className="form-label">Full Name *</label>
+                  <input className="form-input" type="text" placeholder="e.g. María García" value={form.name} onChange={setFormField(setForm, "name")} />
                 </div>
-                <div>
-                  <label style={{ fontSize: 11, color: C.mutedGray, fontWeight: 600, display: "block", marginBottom: 4 }}>Phone</label>
-                  <input type="text" placeholder="+58 412 000 0000" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} style={iStyle} />
+              </div>
+              <div className="form-row" style={{ gridTemplateColumns: "1fr 1fr" }}>
+                <div className="form-group">
+                  <label className="form-label">Phone</label>
+                  <input className="form-input" type="text" placeholder="+58 412 000 0000" value={form.phone} onChange={setFormField(setForm, "phone")} />
                 </div>
-                <div>
-                  <label style={{ fontSize: 11, color: C.mutedGray, fontWeight: 600, display: "block", marginBottom: 4 }}>Email</label>
-                  <input type="email" placeholder="email@example.com" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} style={iStyle} />
+                <div className="form-group">
+                  <label className="form-label">Email</label>
+                  <input className="form-input" type="email" placeholder="email@example.com" value={form.email} onChange={setFormField(setForm, "email")} />
                 </div>
-                <div>
-                  <label style={{ fontSize: 11, color: C.mutedGray, fontWeight: 600, display: "block", marginBottom: 4 }}>Region</label>
-                  <select value={form.vz_state} onChange={e => setForm(f => ({ ...f, vz_state: e.target.value }))} style={iStyle}>
-                    {US_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+              </div>
+              <div className="form-row" style={{ gridTemplateColumns: "1fr 1fr" }}>
+                <div className="form-group">
+                  <label className="form-label">Region</label>
+                  <select className="form-input" value={form.vz_state} onChange={setFormField(setForm, "vz_state")}>
+                    {US_STATES.map(function(s) { return <option key={s} value={s}>{s}</option>; })}
                   </select>
                 </div>
-                <div>
-                  <label style={{ fontSize: 11, color: C.mutedGray, fontWeight: 600, display: "block", marginBottom: 4 }}>Type</label>
-                  <select value={form.tipo} onChange={e => setForm(f => ({ ...f, tipo: e.target.value }))} style={iStyle}>
+                <div className="form-group">
+                  <label className="form-label">Type</label>
+                  <select className="form-input" value={form.tipo} onChange={setFormField(setForm, "tipo")}>
                     <option value="Retail">Retail</option>
                     <option value="Wholesale">Wholesale</option>
                   </select>
                 </div>
-                <div>
-                  <label style={{ fontSize: 11, color: C.mutedGray, fontWeight: 600, display: "block", marginBottom: 4 }}>Credit Limit (USD)</label>
-                  <input type="number" min="0" value={form.credit_limit} onChange={e => setForm(f => ({ ...f, credit_limit: e.target.value }))} style={iStyle} />
+              </div>
+              <div className="form-row" style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
+                <div className="form-group">
+                  <label className="form-label">Credit Limit</label>
+                  <input className="form-input" type="number" min="0" value={form.credit_limit} onChange={setFormField(setForm, "credit_limit")} />
                 </div>
-                <div>
-                  <label style={{ fontSize: 11, color: C.mutedGray, fontWeight: 600, display: "block", marginBottom: 4 }}>Credit Days</label>
-                  <input type="number" min="0" value={form.credit_days} onChange={e => setForm(f => ({ ...f, credit_days: e.target.value }))} style={iStyle} />
+                <div className="form-group">
+                  <label className="form-label">Credit Days</label>
+                  <input className="form-input" type="number" min="0" value={form.credit_days} onChange={setFormField(setForm, "credit_days")} />
                 </div>
-                <div>
-                  <label style={{ fontSize: 11, color: C.mutedGray, fontWeight: 600, display: "block", marginBottom: 4 }}>Status</label>
-                  <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} style={iStyle}>
+                <div className="form-group">
+                  <label className="form-label">Status</label>
+                  <select className="form-input" value={form.status} onChange={setFormField(setForm, "status")}>
                     <option value="Active">Active</option>
                     <option value="Inactive">Inactive</option>
                   </select>
                 </div>
-                <div style={{ gridColumn: "span 2" }}>
-                  <label style={{ fontSize: 11, color: C.mutedGray, fontWeight: 600, display: "block", marginBottom: 4 }}>Notes</label>
-                  <input type="text" placeholder="Additional notes..." value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} style={iStyle} />
+              </div>
+              <div className="form-row" style={{ gridTemplateColumns: "1fr" }}>
+                <div className="form-group">
+                  <label className="form-label">Notes</label>
+                  <input className="form-input" type="text" placeholder="Additional notes..." value={form.notes} onChange={setFormField(setForm, "notes")} />
                 </div>
               </div>
-              <button type="submit" className="btn-primary" disabled={saving} style={{ width: "100%", background: saving ? C.mutedGray : C.primary, color: "white", border: "none", borderRadius: 9, padding: "12px 20px", fontSize: 14, fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", fontFamily: "'DM Sans', sans-serif" }}>
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={saving}
+                style={{
+                  width: "100%", padding: "12px 20px", fontSize: "13px", marginTop: "8px",
+                  opacity: saving ? 0.4 : 1, cursor: saving ? "not-allowed" : "pointer",
+                }}
+              >
                 {saving ? "Saving..." : editClient ? "Save Changes" : "Create Client"}
               </button>
             </form>
           </div>
         </div>
       )}
-      </div>
     </div>
   );
 }

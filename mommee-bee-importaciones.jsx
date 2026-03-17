@@ -1,74 +1,12 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./src/supabaseClient.js";
 
-const C = {
-  primary: "#CC9F75",
-  accent: "#B36A23",
-  dark: "#4C5155",
-  bg: "#EDEFEA",
-  surface: "#ffffff",
-  surfaceAlt: "#f3f3f2",
-  border: "#d0d0cf",
-  darkGray: "#1a1a1a",
-  medGray: "#4a4a4a",
-  mutedGray: "#888888",
-  green: "#16a34a",    greenBg: "#dcfce7",
-  red: "#dc2626",      redBg: "#fee2e2",
-  yellow: "#d97706",   yellowBg: "#fef3c7",
-  blue: "#2563eb",     blueBg: "#dbeafe",
-  purple: "#7c3aed",   purpleBg: "#ede9fe",
-  beige: "#D9CCBD",
-  lightBlue: "#CEDBE6",
-  gray: "#727375",
-};
+var MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+var STATUSES = ["Ordered", "In Transit", "In Customs", "Received"];
+var ORIGINS = ["China", "USA", "Colombia", "Europe", "Local", "Other"];
+var SUPPLIERS_LIST = ["Local Artisan", "China Direct", "US Supplier", "Colombia Source", "Generic"];
 
-const Card = ({ children, style }) => (
-  <div style={{
-    background: C.surface,
-    border: `1px solid ${C.border}`,
-    borderRadius: 14,
-    padding: 20,
-    boxShadow: "0 1px 6px rgba(76,81,85,0.06)",
-    ...style,
-  }}>
-    {children}
-  </div>
-);
-
-const SectionTitle = ({ label, title, action }) => (
-  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 16 }}>
-    <div>
-      <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: C.primary, fontWeight: 700, marginBottom: 2 }}>{label}</div>
-      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: C.darkGray, letterSpacing: 1 }}>{title}</div>
-    </div>
-    {action && action}
-  </div>
-);
-
-const iStyle = {
-  background: C.surface,
-  border: `1px solid ${C.border}`,
-  borderRadius: 8,
-  padding: "9px 12px",
-  fontSize: 13,
-  fontFamily: "'DM Sans', sans-serif",
-  color: C.darkGray,
-  outline: "none",
-  width: "100%",
-};
-
-const STATUSES = ["Ordered", "In Transit", "In Customs", "Received"];
-const ORIGINS = ["China", "USA", "Colombia", "Europe", "Local", "Other"];
-const SUPPLIERS_LIST = ["Local Artisan", "China Direct", "US Supplier", "Colombia Source", "Generic"];
-
-const STATUS_META = {
-  "Ordered":    { color: C.blue,   bg: C.blueBg,   icon: "📋", next: "In Transit" },
-  "In Transit": { color: C.yellow, bg: C.yellowBg, icon: "🚢", next: "In Customs" },
-  "In Customs": { color: C.purple, bg: C.purpleBg, icon: "🏛", next: "Received" },
-  "Received":   { color: C.green,  bg: C.greenBg,  icon: "✅", next: null },
-};
-
-const EMPTY_FORM = {
+var EMPTY_FORM = {
   date: new Date().toISOString().split("T")[0],
   supplier: "",
   invoice_number: "",
@@ -78,527 +16,612 @@ const EMPTY_FORM = {
   notes: "",
 };
 
-const EMPTY_ITEM = { product_code: "", product_name: "", quantity: 1, unit_cost: 0, unit_price: 0, shipping_fee: 0, product_id: null };
+var EMPTY_ITEM = { product_code: "", product_name: "", quantity: 1, unit_cost: 0, unit_price: 0, shipping_fee: 0, product_id: null };
 
-export default function MommeeImportaciones({ onNavigate }) {
-  const [imports, setImports] = useState([]);
-  const [importItems, setImportItems] = useState([]);
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [showForm, setShowForm] = useState(false);
-  const [selectedImport, setSelectedImport] = useState(null);
-  const [form, setForm] = useState(EMPTY_FORM);
-  const [items, setItems] = useState([EMPTY_ITEM]);
-  const [msg, setMsg] = useState("");
-  const [prodSearch, setProdSearch] = useState({});
-  const [showDropdown, setShowDropdown] = useState({});
+function fmtD(v) { return "$" + v.toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 
-  useEffect(() => { loadData(); }, []);
+export default function MommeeImportaciones(props) {
+  var onNavigate = props.onNavigate || function() {};
 
-  async function loadData() {
+  var importsState = useState([]);       var imports = importsState[0];        var setImports = importsState[1];
+  var iiState = useState([]);            var importItems = iiState[0];         var setImportItems = iiState[1];
+  var productsState = useState([]);      var products = productsState[0];      var setProducts = productsState[1];
+  var loadingState = useState(true);     var loading = loadingState[0];        var setLoading = loadingState[1];
+  var savingState = useState(false);     var saving = savingState[0];          var setSaving = savingState[1];
+  var showFormState = useState(false);   var showForm = showFormState[0];      var setShowForm = showFormState[1];
+  var selState = useState(null);         var selectedImport = selState[0];     var setSelectedImport = selState[1];
+  var formState = useState(EMPTY_FORM);  var form = formState[0];             var setForm = formState[1];
+  var itemsState = useState([EMPTY_ITEM]); var items = itemsState[0];          var setItems = itemsState[1];
+  var msgState = useState("");           var msg = msgState[0];                var setMsg = msgState[1];
+  var psState = useState({});            var prodSearch = psState[0];          var setProdSearch = psState[1];
+  var ddState = useState({});            var showDropdown = ddState[0];        var setShowDropdown = ddState[1];
+
+  useEffect(function() { loadData(); }, []);
+
+  function loadData() {
     setLoading(true);
-    const year = new Date().getFullYear();
-    const yearStart = `${year}-01-01`;
-    const [iR, iiR, pR] = await Promise.all([
+    var year = new Date().getFullYear();
+    var yearStart = year + "-01-01";
+    Promise.all([
       supabase.from("imports").select("*").gte("date", yearStart).order("date", { ascending: false }),
       supabase.from("import_items").select("*"),
       supabase.from("products").select("*").eq("status", "Active"),
-    ]);
-    if (iR.data) setImports(iR.data);
-    if (iiR.data) setImportItems(iiR.data);
-    if (pR.data) setProducts(pR.data);
-    setLoading(false);
+    ]).then(function(results) {
+      if (results[0].data) setImports(results[0].data);
+      if (results[1].data) setImportItems(results[1].data);
+      if (results[2].data) setProducts(results[2].data);
+      setLoading(false);
+    });
+  }
+
+  function setF(key) {
+    return function(e) {
+      setForm(function(f) { var n = {}; for (var k in f) n[k] = f[k]; n[key] = e.target.value; return n; });
+    };
   }
 
   function calcTotal() {
-    const itemsTotal = items.reduce((sum, it) => sum + ((parseInt(it.quantity) || 0) * (parseFloat(it.unit_cost) || 0)), 0);
+    var itemsTotal = items.reduce(function(sum, it) { return sum + ((parseInt(it.quantity) || 0) * (parseFloat(it.unit_cost) || 0)); }, 0);
     return itemsTotal + (parseFloat(form.freight_cost) || 0) + (parseFloat(form.taxes) || 0);
   }
 
   function addItem() {
-    setItems(prev => [...prev, { ...EMPTY_ITEM }]);
+    var copy = {}; for (var k in EMPTY_ITEM) copy[k] = EMPTY_ITEM[k];
+    setItems(function(prev) { return prev.concat([copy]); });
   }
 
   function removeItem(idx) {
-    setItems(prev => prev.filter((_, i) => i !== idx));
+    setItems(function(prev) { return prev.filter(function(_, i) { return i !== idx; }); });
   }
 
   function updateItem(idx, field, value) {
-    setItems(prev => prev.map((it, i) => i === idx ? { ...it, [field]: value } : it));
+    setItems(function(prev) {
+      return prev.map(function(it, i) {
+        if (i === idx) { var n = {}; for (var k in it) n[k] = it[k]; n[field] = value; return n; }
+        return it;
+      });
+    });
   }
 
   function selectProductForItem(idx, p) {
-    setItems(prev => prev.map((it, i) => i === idx ? {
-      ...it,
-      product_id: p.id,
-      product_code: p.code,
-      product_name: p.name,
-      unit_price: parseFloat(p.price_detal) || 0,
-    } : it));
-    setProdSearch(prev => ({ ...prev, [idx]: p.code + " — " + p.name }));
-    setShowDropdown(prev => ({ ...prev, [idx]: false }));
+    setItems(function(prev) {
+      return prev.map(function(it, i) {
+        if (i === idx) {
+          var n = {}; for (var k in it) n[k] = it[k];
+          n.product_id = p.id; n.product_code = p.code; n.product_name = p.name;
+          n.unit_price = parseFloat(p.price_detal) || 0;
+          return n;
+        }
+        return it;
+      });
+    });
+    var ps = {}; for (var k in prodSearch) ps[k] = prodSearch[k]; ps[idx] = p.code + " — " + p.name; setProdSearch(ps);
+    var dd = {}; for (var k in showDropdown) dd[k] = showDropdown[k]; dd[idx] = false; setShowDropdown(dd);
   }
 
-  async function handleSubmit(e) {
-    e.preventDefault();
+  function handleSubmit(e) {
+    if (e) e.preventDefault();
     if (!form.supplier) { setMsg("Supplier is required."); return; }
-    if (items.filter(it => it.product_code).length === 0) { setMsg("Add at least one product."); return; }
+    if (items.filter(function(it) { return it.product_code; }).length === 0) { setMsg("Add at least one product."); return; }
     setSaving(true);
     setMsg("");
 
-    const total = calcTotal();
-
-    const { data: impData, error: impErr } = await supabase.from("imports").insert({
-      date: form.date,
-      supplier: form.supplier,
-      invoice_number: form.invoice_number,
-      origin: form.origin,
-      freight_cost: parseFloat(form.freight_cost) || 0,
-      taxes: parseFloat(form.taxes) || 0,
-      total_cost: total,
-      status: "Ordered",
-      notes: form.notes,
-    }).select().single();
-
-    if (impErr) { setMsg("Error: " + impErr.message); setSaving(false); return; }
-
-    const validItems = items.filter(it => it.product_code && it.quantity > 0);
-    const dbItems = validItems.map(it => ({
-      import_id: impData.id,
-      product_id: it.product_id,
-      product_code: it.product_code,
-      product_name: it.product_name,
-      quantity: parseInt(it.quantity) || 1,
-      unit_cost: parseFloat(it.unit_cost) || 0,
-      unit_price: parseFloat(it.unit_price) || 0,
-      shipping_fee: parseFloat(it.shipping_fee) || 0,
-    }));
-
-    await supabase.from("import_items").insert(dbItems);
-
-    setImports(prev => [impData, ...prev]);
-    setImportItems(prev => [...prev, ...dbItems.map((d, i) => ({ ...d, id: Date.now() + i }))]);
-    setForm(EMPTY_FORM);
-    setItems([EMPTY_ITEM]);
-    setProdSearch({});
-    setShowForm(false);
-    setMsg("Import order created successfully!");
-    setTimeout(() => setMsg(""), 3000);
-    setSaving(false);
+    var total = calcTotal();
+    supabase.from("imports").insert({
+      date: form.date, supplier: form.supplier, invoice_number: form.invoice_number,
+      origin: form.origin, freight_cost: parseFloat(form.freight_cost) || 0,
+      taxes: parseFloat(form.taxes) || 0, total_cost: total, status: "Ordered", notes: form.notes,
+    }).select().single().then(function(res) {
+      if (res.error) { setMsg("Error: " + res.error.message); setSaving(false); return; }
+      var impData = res.data;
+      var validItems = items.filter(function(it) { return it.product_code && it.quantity > 0; });
+      var dbItems = validItems.map(function(it) {
+        return {
+          import_id: impData.id, product_id: it.product_id, product_code: it.product_code,
+          product_name: it.product_name, quantity: parseInt(it.quantity) || 1,
+          unit_cost: parseFloat(it.unit_cost) || 0, unit_price: parseFloat(it.unit_price) || 0,
+          shipping_fee: parseFloat(it.shipping_fee) || 0,
+        };
+      });
+      supabase.from("import_items").insert(dbItems).then(function() {
+        setImports(function(prev) { return [impData].concat(prev); });
+        setImportItems(function(prev) { return prev.concat(dbItems.map(function(d, i) { var n = {}; for (var k in d) n[k] = d[k]; n.id = Date.now() + i; return n; })); });
+        setForm(EMPTY_FORM);
+        setItems([EMPTY_ITEM]);
+        setProdSearch({});
+        setShowForm(false);
+        setMsg("Import order created successfully!");
+        setTimeout(function() { setMsg(""); }, 3000);
+        setSaving(false);
+      });
+    });
   }
 
-  async function advanceStatus(imp) {
-    const meta = STATUS_META[imp.status];
-    if (!meta || !meta.next) return;
-    const nextStatus = meta.next;
+  function advanceStatus(imp) {
+    var nextMap = { "Ordered": "In Transit", "In Transit": "In Customs", "In Customs": "Received" };
+    var nextStatus = nextMap[imp.status];
+    if (!nextStatus) return;
 
-    const { data: updated } = await supabase.from("imports").update({ status: nextStatus }).eq("id", imp.id).select().single();
-    if (!updated) return;
-
-    if (nextStatus === "Received") {
-      const orderItems = importItems.filter(ii => ii.import_id === imp.id);
-      for (const item of orderItems) {
-        if (item.product_id) {
-          const prod = products.find(p => p.id === item.product_id);
-          if (prod) {
-            const newStock = (prod.stock || 0) + (item.quantity || 0);
-            await supabase.from("products").update({ stock: newStock, updated_at: new Date().toISOString() }).eq("id", item.product_id);
+    supabase.from("imports").update({ status: nextStatus }).eq("id", imp.id).select().single().then(function(res) {
+      if (!res.data) return;
+      if (nextStatus === "Received") {
+        var orderItems = importItems.filter(function(ii) { return ii.import_id === imp.id; });
+        var updates = orderItems.map(function(item) {
+          if (item.product_id) {
+            var prod = products.find(function(p) { return p.id === item.product_id; });
+            if (prod) {
+              var newStock = (prod.stock || 0) + (item.quantity || 0);
+              return supabase.from("products").update({ stock: newStock, updated_at: new Date().toISOString() }).eq("id", item.product_id);
+            }
           }
-        }
+          return Promise.resolve();
+        });
+        Promise.all(updates);
       }
-    }
-
-    setImports(prev => prev.map(i => i.id === imp.id ? { ...i, status: nextStatus } : i));
-    if (selectedImport && selectedImport.id === imp.id) {
-      setSelectedImport(prev => ({ ...prev, status: nextStatus }));
-    }
+      setImports(function(prev) { return prev.map(function(i) { if (i.id === imp.id) { var n = {}; for (var k in i) n[k] = i[k]; n.status = nextStatus; return n; } return i; }); });
+      if (selectedImport && selectedImport.id === imp.id) {
+        setSelectedImport(function(prev) { var n = {}; for (var k in prev) n[k] = prev[k]; n.status = nextStatus; return n; });
+      }
+    });
   }
 
   // Computations
-  const year = new Date().getFullYear();
-  const activeImports = imports.filter(i => i.status !== "Received");
-  const receivedImports = imports.filter(i => i.status === "Received");
-  const activeValue = activeImports.reduce((sum, i) => sum + (parseFloat(i.total_cost) || 0), 0);
-  const yearValue = imports.reduce((sum, i) => sum + (parseFloat(i.total_cost) || 0), 0);
+  var now = new Date();
+  var cm = now.getMonth();
+  var cy = now.getFullYear();
+  var dateLabel = MONTHS[cm] + " " + (now.getDate() < 10 ? "0" : "") + now.getDate() + ", " + cy;
 
-  const selectedItems = selectedImport ? importItems.filter(ii => ii.import_id === selectedImport.id) : [];
+  var activeImports = imports.filter(function(i) { return i.status !== "Received"; });
+  var receivedImports = imports.filter(function(i) { return i.status === "Received"; });
+  var activeValue = activeImports.reduce(function(sum, i) { return sum + (parseFloat(i.total_cost) || 0); }, 0);
+  var yearValue = imports.reduce(function(sum, i) { return sum + (parseFloat(i.total_cost) || 0); }, 0);
 
-  const filteredProds = (idx) => {
-    const q = ((prodSearch[idx] || "").toLowerCase());
+  var selectedItems = selectedImport ? importItems.filter(function(ii) { return ii.import_id === selectedImport.id; }) : [];
+
+  var filteredProds = function(idx) {
+    var q = ((prodSearch[idx] || "").toLowerCase());
     if (!q) return products.slice(0, 8);
-    return products.filter(p =>
-      p.name.toLowerCase().includes(q) || p.code.toLowerCase().includes(q)
-    ).slice(0, 8);
+    return products.filter(function(p) {
+      return p.name.toLowerCase().includes(q) || p.code.toLowerCase().includes(q);
+    }).slice(0, 8);
+  };
+
+  var statusColor = function(status) {
+    if (status === "Ordered") return "var(--blue)";
+    if (status === "In Transit") return "var(--orange)";
+    if (status === "In Customs") return "var(--purple)";
+    if (status === "Received") return "var(--green)";
+    return "var(--muted)";
+  };
+
+  var statusBdg = function(status) {
+    if (status === "Ordered") return "bdg-bl";
+    if (status === "In Transit") return "bdg-or";
+    if (status === "In Customs") return "bdg-bl";
+    if (status === "Received") return "bdg-gn";
+    return "bdg-or";
+  };
+
+  var nextStatus = function(status) {
+    if (status === "Ordered") return "In Transit";
+    if (status === "In Transit") return "In Customs";
+    if (status === "In Customs") return "Received";
+    return null;
   };
 
   if (loading) {
     return (
-      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "60vh" }}>
-        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 32, color: C.primary, letterSpacing: 4 }}>LOADING...</div>
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "80vh" }}>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontFamily: "var(--mono)", fontSize: "28px", fontWeight: 500, color: "var(--accent)", letterSpacing: "-0.04em", marginBottom: "8px" }}>LOADING</div>
+          <div style={{ color: "var(--muted)", fontSize: "13px" }}>Loading imports...</div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div style={{ fontFamily: "'DM Sans',sans-serif", color: C.darkGray }}>
-      <style>{`
-        @keyframes slideIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
-        .btn-orange:hover{background:#b8895f!important;transform:translateY(-1px);box-shadow:0 4px 16px rgba(204,159,117,0.3)!important}
-        .btn-ghost:hover{border-color:#CC9F75!important;color:#CC9F75!important}
-        .row-hover:hover{background:#f8f8f7!important}
-      `}</style>
-      <div style={{ maxWidth: "1280px", margin: "0 auto" }}>
-      <div style={{ marginBottom: "24px", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
-        <div>
-          <div style={{ fontSize: "10px", color: C.primary, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: "4px" }}>◆ Logistics</div>
-          <h1 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: "34px", letterSpacing: "0.06em", color: C.darkGray, lineHeight: 1, margin: 0 }}>IMPORTS</h1>
-          <p style={{ color: C.mutedGray, fontSize: "12px", marginTop: "4px" }}>{imports.length} orders · {activeImports.length} active</p>
+    <div style={{ minHeight: "100vh" }}>
+      <style>{"\n        .imp-card:hover{border-color:var(--accent)!important;box-shadow:var(--sh-md)!important}\n        .imp-dd-item:hover{background:rgba(0,0,0,.03)!important}\n      "}</style>
+
+      {/* Header */}
+      <div className="hdr">
+        <div className="hdr-left">
+          <div className="hdr-title">Importaciones</div>
+          <div className="hdr-date">{dateLabel}</div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <button className="btn" onClick={function() { setShowForm(function(v) { return !v; }); setSelectedImport(null); }} style={{ gap: "6px" }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "12px", height: "12px" }}>
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            {showForm ? "Cancel" : "New Import"}
+          </button>
         </div>
       </div>
 
-      {/* KPIs */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 20 }}>
-        <Card>
-          <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: C.primary, fontWeight: 700, marginBottom: 4 }}>Active Orders</div>
-          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 38, color: C.darkGray }}>{activeImports.length}</div>
-          <div style={{ fontSize: 12, color: C.mutedGray }}>In progress</div>
-        </Card>
-        <Card>
-          <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: C.primary, fontWeight: 700, marginBottom: 4 }}>Active Investment</div>
-          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 32, color: C.yellow }}>${activeValue.toFixed(0)}</div>
-          <div style={{ fontSize: 12, color: C.mutedGray }}>In transit / customs</div>
-        </Card>
-        <Card>
-          <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: C.primary, fontWeight: 700, marginBottom: 4 }}>Received {year}</div>
-          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 38, color: C.green }}>{receivedImports.length}</div>
-          <div style={{ fontSize: 12, color: C.mutedGray }}>Completed orders</div>
-        </Card>
-        <Card>
-          <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: C.primary, fontWeight: 700, marginBottom: 4 }}>Year Investment</div>
-          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 32, color: C.darkGray }}>${yearValue.toFixed(0)}</div>
-          <div style={{ fontSize: 12, color: C.mutedGray }}>Total {year}</div>
-        </Card>
-      </div>
+      <div className="content">
 
-      {msg && (
-        <div style={{ padding: "12px 16px", borderRadius: 10, marginBottom: 16, background: msg.includes("Error") ? C.redBg : C.greenBg, color: msg.includes("Error") ? C.red : C.green, fontSize: 13, fontWeight: 600 }}>
-          {msg}
-        </div>
-      )}
+        {msg && (
+          <div style={{
+            padding: "10px 16px", borderRadius: "var(--rs)", marginBottom: "16px",
+            background: msg.includes("Error") ? "rgba(255,59,48,.07)" : "rgba(52,199,89,.07)",
+            color: msg.includes("Error") ? "var(--red)" : "var(--green)",
+            fontSize: "13px", fontWeight: 500, fontFamily: "var(--mono)", letterSpacing: "-0.01em",
+            animation: "slideIn 0.2s ease",
+          }}>
+            {msg}
+          </div>
+        )}
 
-      <div style={{ display: "grid", gridTemplateColumns: selectedImport ? "1fr 1fr" : "1fr", gap: 20 }}>
-        {/* Left: Import List + Form */}
-        <div>
-          <Card style={{ marginBottom: 16 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <div>
-                <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: C.primary, fontWeight: 700, marginBottom: 2 }}>Orders</div>
-                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: C.darkGray }}>Import Orders ({imports.length})</div>
+        {/* KPIs */}
+        <div className="g4">
+          {[
+            { label: "Ordenes Activas", val: String(activeImports.length), sub: "In progress",
+              icon: function() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="1" y="6" width="22" height="12" rx="2"/><path d="M1 10h22"/></svg>; } },
+            { label: "Inversion Activa", val: "$" + activeValue.toFixed(0), sub: "In transit / customs", orange: true,
+              icon: function() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>; } },
+            { label: "Recibidas " + cy, val: String(receivedImports.length), sub: "Completed orders", green: true,
+              icon: function() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>; } },
+            { label: "Inversion " + cy, val: "$" + yearValue.toFixed(0), sub: "Total " + cy,
+              icon: function() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>; } },
+          ].map(function(kpi) {
+            return (
+              <div key={kpi.label} className="kpi">
+                <div className="kpi-ico">{kpi.icon()}</div>
+                <div className="kpi-lbl">{kpi.label}</div>
+                <div className="kpi-val" style={kpi.orange ? { color: "var(--orange)" } : kpi.green ? { color: "var(--green)" } : {}}>{kpi.val}</div>
+                <div style={{ fontFamily: "var(--mono)", fontSize: "10px", color: "var(--muted)", marginTop: "4px" }}>{kpi.sub}</div>
               </div>
-              <button
-                className="btn-primary"
-                onClick={() => { setShowForm(!showForm); setSelectedImport(null); }}
-                style={{ background: C.primary, color: "white", border: "none", borderRadius: 8, padding: "9px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}
-              >
-                {showForm ? "Cancel" : "+ New Import"}
-              </button>
-            </div>
+            );
+          })}
+        </div>
 
-            {imports.map(imp => {
-              const meta = STATUS_META[imp.status] || { color: C.mutedGray, bg: C.surfaceAlt, icon: "?", next: null };
-              const impItems = importItems.filter(ii => ii.import_id === imp.id);
-              return (
-                <div
-                  key={imp.id}
-                  onClick={() => { setSelectedImport(selectedImport && selectedImport.id === imp.id ? null : imp); setShowForm(false); }}
-                  style={{
-                    padding: "14px 16px",
-                    borderRadius: 10,
-                    marginBottom: 10,
-                    border: `1px solid ${selectedImport && selectedImport.id === imp.id ? C.primary : C.border}`,
-                    background: selectedImport && selectedImport.id === imp.id ? `${C.primary}06` : C.surfaceAlt,
-                    cursor: "pointer",
-                    transition: "all 0.15s ease",
-                  }}
-                >
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
-                    <div>
-                      <div style={{ fontSize: 14, color: C.darkGray, fontWeight: 600 }}>{imp.supplier || "—"}</div>
-                      <div style={{ fontSize: 11, color: C.mutedGray }}>
-                        {imp.invoice_number || "No invoice"} · {imp.origin || "—"} · {imp.date}
+        <div style={{ display: "grid", gridTemplateColumns: selectedImport || showForm ? "1fr 1fr" : "1fr", gap: "16px" }}>
+          {/* Left: Import List */}
+          <div className="card">
+            <div className="card-h">
+              <div>
+                <div className="card-t">Ordenes de Importacion</div>
+                <div className="card-sub">{imports.length + " orders · " + activeImports.length + " active"}</div>
+              </div>
+            </div>
+            <div className="card-b">
+              {imports.map(function(imp) {
+                var impItems = importItems.filter(function(ii) { return ii.import_id === imp.id; });
+                var isSelected = selectedImport && selectedImport.id === imp.id;
+                var ns = nextStatus(imp.status);
+                return (
+                  <div
+                    key={imp.id}
+                    className="imp-card"
+                    onClick={function() { setSelectedImport(isSelected ? null : imp); setShowForm(false); }}
+                    style={{
+                      padding: "14px 16px", borderRadius: "var(--rs)", marginBottom: "10px",
+                      border: "1px solid " + (isSelected ? "var(--accent)" : "var(--border)"),
+                      background: isSelected ? "var(--accent-light)" : "rgba(0,0,0,.015)",
+                      cursor: "pointer", transition: "all 0.25s var(--ease)",
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
+                      <div>
+                        <div style={{ fontSize: "14px", fontWeight: 600, letterSpacing: "-0.01em" }}>{imp.supplier || "—"}</div>
+                        <div style={{ fontFamily: "var(--mono)", fontSize: "10px", color: "var(--muted)" }}>
+                          {(imp.invoice_number || "No invoice") + " · " + (imp.origin || "—") + " · " + imp.date}
+                        </div>
+                      </div>
+                      <div style={{ textAlign: "right" }}>
+                        <div className="mono" style={{ fontSize: "15px", fontWeight: 600 }}>{"$" + (parseFloat(imp.total_cost) || 0).toFixed(2)}</div>
+                        <span className={"bdg " + statusBdg(imp.status)}>{imp.status}</span>
                       </div>
                     </div>
-                    <div style={{ textAlign: "right" }}>
-                      <div style={{ fontSize: 16, fontFamily: "'Bebas Neue', sans-serif", color: C.darkGray }}>${(parseFloat(imp.total_cost) || 0).toFixed(2)}</div>
-                      <span style={{ background: meta.bg, color: meta.color, borderRadius: 4, padding: "2px 8px", fontSize: 11, fontWeight: 600 }}>
-                        {meta.icon} {imp.status}
-                      </span>
+
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontFamily: "var(--mono)", fontSize: "10px", color: "var(--muted)" }}>{impItems.length + " products"}</span>
+                      {ns && (
+                        <button
+                          className="btn btn-primary"
+                          onClick={function(e) { e.stopPropagation(); advanceStatus(imp); }}
+                          style={{ padding: "4px 12px", fontSize: "10px" }}
+                        >
+                          {"→ " + ns}
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Status progress bar */}
+                    <div style={{ display: "flex", gap: "3px", marginTop: "10px" }}>
+                      {STATUSES.map(function(s, i) {
+                        var currentIdx = STATUSES.indexOf(imp.status);
+                        return (
+                          <div key={s} style={{
+                            flex: 1, height: "3px", borderRadius: "2px",
+                            background: i <= currentIdx ? statusColor(imp.status) : "var(--border)",
+                            opacity: i <= currentIdx ? 1 : 0.3,
+                            transition: "all 0.3s var(--ease)",
+                          }} />
+                        );
+                      })}
                     </div>
                   </div>
+                );
+              })}
 
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: 11, color: C.mutedGray }}>{impItems.length} products</span>
-                    {meta.next && (
-                      <button
-                        onClick={e => { e.stopPropagation(); advanceStatus(imp); }}
-                        style={{
-                          background: meta.color,
-                          color: "white",
-                          border: "none",
-                          borderRadius: 6,
-                          padding: "5px 12px",
-                          fontSize: 11,
-                          fontWeight: 600,
-                          cursor: "pointer",
-                          fontFamily: "'DM Sans', sans-serif",
-                        }}
-                      >
-                        → {meta.next}
-                      </button>
-                    )}
+              {imports.length === 0 && !showForm && (
+                <div style={{ textAlign: "center", padding: "32px 0", color: "var(--muted)" }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: "32px", height: "32px", margin: "0 auto 8px", display: "block", opacity: 0.3 }}>
+                    <rect x="1" y="6" width="22" height="12" rx="2"/><path d="M1 10h22"/>
+                  </svg>
+                  No imports this year
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Right: Detail */}
+          {selectedImport && !showForm && (
+            <div className="card">
+              <div className="card-h">
+                <div>
+                  <div className="card-t">{"Import #" + selectedImport.id}</div>
+                  <div className="card-sub">Order details</div>
+                </div>
+                <button className="btn" onClick={function() { setSelectedImport(null); }} style={{ padding: "4px 10px" }}>×</button>
+              </div>
+              <div className="card-b">
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "16px" }}>
+                  {[
+                    { label: "Supplier", value: selectedImport.supplier },
+                    { label: "Invoice", value: selectedImport.invoice_number || "—" },
+                    { label: "Date", value: selectedImport.date },
+                    { label: "Origin", value: selectedImport.origin },
+                    { label: "Freight", value: "$" + (parseFloat(selectedImport.freight_cost) || 0).toFixed(2) },
+                    { label: "Taxes", value: "$" + (parseFloat(selectedImport.taxes) || 0).toFixed(2) },
+                  ].map(function(row) {
+                    return (
+                      <div key={row.label} style={{ padding: "10px 14px", background: "rgba(0,0,0,.02)", borderRadius: "var(--rs)" }}>
+                        <div className="form-label" style={{ marginBottom: "2px" }}>{row.label}</div>
+                        <div style={{ fontSize: "13px", fontWeight: 500, letterSpacing: "-0.01em" }}>{row.value}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Status banner */}
+                <div className="summary-bar" style={{ marginBottom: "16px" }}>
+                  <div className="summary-item">
+                    <div className="summary-label">Status</div>
+                    <div className="summary-value" style={{ color: statusColor(selectedImport.status) }}>{selectedImport.status}</div>
                   </div>
+                  <div className="summary-spacer" />
+                  <div className="summary-item">
+                    <div className="summary-label">Total</div>
+                    <div className="summary-value accent">{"$" + (parseFloat(selectedImport.total_cost) || 0).toFixed(2)}</div>
+                  </div>
+                </div>
 
-                  {/* Status progress bar */}
-                  <div style={{ display: "flex", gap: 4, marginTop: 10 }}>
-                    {STATUSES.map((s, i) => {
-                      const currentIdx = STATUSES.indexOf(imp.status);
+                {/* Items table */}
+                <table className="dt">
+                  <thead>
+                    <tr>
+                      <th>Code</th>
+                      <th>Product</th>
+                      <th>Qty</th>
+                      <th>Unit Cost</th>
+                      <th style={{ textAlign: "right" }}>Subtotal</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedItems.map(function(it, i) {
                       return (
-                        <div key={s} style={{
-                          flex: 1,
-                          height: 4,
-                          borderRadius: 2,
-                          background: i <= currentIdx ? meta.color : C.border,
-                          opacity: i <= currentIdx ? 1 : 0.4,
-                        }} />
+                        <tr key={i}>
+                          <td><span className="bdg bdg-or">{it.product_code}</span></td>
+                          <td>{it.product_name}</td>
+                          <td className="mono" style={{ fontSize: "11px" }}>{it.quantity}</td>
+                          <td className="mono" style={{ fontSize: "11px" }}>{"$" + (parseFloat(it.unit_cost) || 0).toFixed(2)}</td>
+                          <td className="mono" style={{ textAlign: "right", fontWeight: 600, fontSize: "11px" }}>{"$" + ((it.quantity || 0) * (parseFloat(it.unit_cost) || 0)).toFixed(2)}</td>
+                        </tr>
                       );
                     })}
-                  </div>
-                </div>
-              );
-            })}
+                  </tbody>
+                </table>
 
-            {imports.length === 0 && !showForm && (
-              <div style={{ color: C.mutedGray, fontSize: 13, textAlign: "center", padding: "24px 0" }}>No imports this year. Create your first order!</div>
-            )}
-          </Card>
+                {selectedImport.notes && (
+                  <div style={{ marginTop: "14px", padding: "10px 14px", background: "rgba(0,0,0,.02)", borderRadius: "var(--rs)", fontSize: "12px", color: "var(--muted)" }}>
+                    <span style={{ fontWeight: 600, color: "var(--dark)" }}>Notes: </span>{selectedImport.notes}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Right: New Import Form */}
+          {showForm && (
+            <div className="card">
+              <div className="card-h">
+                <div>
+                  <div className="card-t">Nueva Importacion</div>
+                  <div className="card-sub">Create order</div>
+                </div>
+              </div>
+              <div className="card-b">
+                <form onSubmit={handleSubmit}>
+                  <div className="form-row" style={{ gridTemplateColumns: "1fr 1fr" }}>
+                    <div className="form-group">
+                      <label className="form-label">Date</label>
+                      <input className="form-input" type="date" value={form.date} onChange={setF("date")} />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Supplier *</label>
+                      <input className="form-input" type="text" placeholder="Supplier name" value={form.supplier} onChange={setF("supplier")} list="suppliers-list" />
+                      <datalist id="suppliers-list">{SUPPLIERS_LIST.map(function(s) { return <option key={s} value={s} />; })}</datalist>
+                    </div>
+                  </div>
+                  <div className="form-row" style={{ gridTemplateColumns: "1fr 1fr" }}>
+                    <div className="form-group">
+                      <label className="form-label">Invoice Number</label>
+                      <input className="form-input" type="text" placeholder="INV-001" value={form.invoice_number} onChange={setF("invoice_number")} />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Origin</label>
+                      <select className="form-input" value={form.origin} onChange={setF("origin")}>
+                        {ORIGINS.map(function(o) { return <option key={o} value={o}>{o}</option>; })}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="form-row" style={{ gridTemplateColumns: "1fr 1fr" }}>
+                    <div className="form-group">
+                      <label className="form-label">Freight Cost (USD)</label>
+                      <input className="form-input" type="number" step="0.01" min="0" placeholder="0.00" value={form.freight_cost} onChange={setF("freight_cost")} />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Taxes (USD)</label>
+                      <input className="form-input" type="number" step="0.01" min="0" placeholder="0.00" value={form.taxes} onChange={setF("taxes")} />
+                    </div>
+                  </div>
+
+                  <div className="form-label" style={{ marginBottom: "10px", marginTop: "4px" }}>Products</div>
+
+                  {items.map(function(item, idx) {
+                    return (
+                      <div key={idx} style={{ padding: "12px", border: "1px solid var(--border)", borderRadius: "var(--rs)", marginBottom: "10px", background: "rgba(0,0,0,.015)" }}>
+                        <div style={{ position: "relative", marginBottom: "8px" }}>
+                          <input
+                            className="form-input"
+                            type="text"
+                            placeholder="Search product by name or code..."
+                            value={prodSearch[idx] || ""}
+                            onChange={function(e) {
+                              var ps = {}; for (var k in prodSearch) ps[k] = prodSearch[k]; ps[idx] = e.target.value; setProdSearch(ps);
+                              var dd = {}; for (var k in showDropdown) dd[k] = showDropdown[k]; dd[idx] = true; setShowDropdown(dd);
+                              updateItem(idx, "product_code", "");
+                            }}
+                            onFocus={function() {
+                              var dd = {}; for (var k in showDropdown) dd[k] = showDropdown[k]; dd[idx] = true; setShowDropdown(dd);
+                            }}
+                            style={{ width: "100%" }}
+                          />
+                          {showDropdown[idx] && (
+                            <div style={{
+                              position: "absolute", top: "100%", left: 0, right: 0,
+                              background: "var(--white)", border: "1px solid var(--border)",
+                              borderRadius: "var(--rs)", boxShadow: "var(--sh-lg)",
+                              zIndex: 50, maxHeight: "180px", overflowY: "auto", marginTop: "4px",
+                            }}>
+                              {filteredProds(idx).map(function(p) {
+                                return (
+                                  <div
+                                    key={p.id}
+                                    className="imp-dd-item"
+                                    onClick={function() { selectProductForItem(idx, p); }}
+                                    style={{
+                                      padding: "8px 12px", cursor: "pointer", fontSize: "12px",
+                                      borderBottom: "1px solid var(--sep)", display: "flex", alignItems: "center", gap: "8px",
+                                      transition: "background 0.2s",
+                                    }}
+                                  >
+                                    <span className="bdg bdg-or">{p.code}</span>
+                                    <span style={{ flex: 1 }}>{p.name}</span>
+                                    <span className="mono" style={{ fontSize: "10px", color: "var(--muted)" }}>{"Stock: " + p.stock}</span>
+                                  </div>
+                                );
+                              })}
+                              {filteredProds(idx).length === 0 && (
+                                <div style={{ padding: "10px 12px", color: "var(--muted)", fontSize: "12px" }}>No products found.</div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        {!item.product_id && (
+                          <div className="form-row" style={{ gridTemplateColumns: "1fr 1fr" }}>
+                            <div className="form-group">
+                              <input className="form-input" type="text" placeholder="Product Code" value={item.product_code} onChange={function(e) { updateItem(idx, "product_code", e.target.value); }} />
+                            </div>
+                            <div className="form-group">
+                              <input className="form-input" type="text" placeholder="Product Name" value={item.product_name} onChange={function(e) { updateItem(idx, "product_name", e.target.value); }} />
+                            </div>
+                          </div>
+                        )}
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr auto", gap: "8px", alignItems: "end" }}>
+                          <div className="form-group">
+                            <label className="form-label">Qty</label>
+                            <input className="form-input" type="number" min="1" value={item.quantity} onChange={function(e) { updateItem(idx, "quantity", e.target.value); }} />
+                          </div>
+                          <div className="form-group">
+                            <label className="form-label">Unit Cost</label>
+                            <input className="form-input" type="number" step="0.01" min="0" value={item.unit_cost} onChange={function(e) { updateItem(idx, "unit_cost", e.target.value); }} />
+                          </div>
+                          <div className="form-group">
+                            <label className="form-label">Retail Price</label>
+                            <input className="form-input" type="number" step="0.01" min="0" value={item.unit_price} onChange={function(e) { updateItem(idx, "unit_price", e.target.value); }} />
+                          </div>
+                          <button
+                            type="button"
+                            className="btn"
+                            onClick={function() { removeItem(idx); }}
+                            disabled={items.length === 1}
+                            style={{ padding: "6px 10px", color: "var(--red)", background: "rgba(255,59,48,.06)", border: "none" }}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={addItem}
+                    style={{ width: "100%", marginBottom: "14px", border: "1px dashed var(--border)" }}
+                  >
+                    + Add Product
+                  </button>
+
+                  {/* Total summary */}
+                  <div className="summary-bar" style={{ marginBottom: "14px" }}>
+                    <div className="summary-item">
+                      <div className="summary-label">Items</div>
+                      <div className="summary-value">{"$" + items.reduce(function(s, it) { return s + ((parseInt(it.quantity) || 0) * (parseFloat(it.unit_cost) || 0)); }, 0).toFixed(2)}</div>
+                    </div>
+                    <div className="summary-item">
+                      <div className="summary-label">Freight</div>
+                      <div className="summary-value">{"$" + (parseFloat(form.freight_cost) || 0).toFixed(2)}</div>
+                    </div>
+                    <div className="summary-item">
+                      <div className="summary-label">Taxes</div>
+                      <div className="summary-value">{"$" + (parseFloat(form.taxes) || 0).toFixed(2)}</div>
+                    </div>
+                    <div className="summary-spacer" />
+                    <div className="summary-item">
+                      <div className="summary-label">Total</div>
+                      <div className="summary-value accent">{"$" + calcTotal().toFixed(2)}</div>
+                    </div>
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: "14px" }}>
+                    <label className="form-label">Notes</label>
+                    <input className="form-input" type="text" placeholder="Additional notes..." value={form.notes} onChange={setF("notes")} style={{ width: "100%" }} />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    disabled={saving}
+                    style={{
+                      width: "100%", padding: "14px 20px", fontSize: "13px",
+                      opacity: saving ? 0.4 : 1,
+                      cursor: saving ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    {saving ? "Creating Order..." : "Create Import · $" + calcTotal().toFixed(2)}
+                  </button>
+                </form>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Right: Detail or Form */}
-        {selectedImport && !showForm && (
-          <Card>
-            <SectionTitle
-              label={`Import #${selectedImport.id}`}
-              title="Order Details"
-              action={
-                <button onClick={() => setSelectedImport(null)} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: C.mutedGray }}>×</button>
-              }
-            />
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
-              {[
-                { label: "Supplier", value: selectedImport.supplier },
-                { label: "Invoice", value: selectedImport.invoice_number || "—" },
-                { label: "Date", value: selectedImport.date },
-                { label: "Origin", value: selectedImport.origin },
-                { label: "Freight", value: `$${(parseFloat(selectedImport.freight_cost) || 0).toFixed(2)}` },
-                { label: "Taxes", value: `$${(parseFloat(selectedImport.taxes) || 0).toFixed(2)}` },
-              ].map(({ label, value }) => (
-                <div key={label} style={{ padding: "10px 14px", background: C.surfaceAlt, borderRadius: 8 }}>
-                  <div style={{ fontSize: 10, color: C.mutedGray, fontWeight: 600, marginBottom: 2, textTransform: "uppercase" }}>{label}</div>
-                  <div style={{ fontSize: 13, color: C.darkGray, fontWeight: 500 }}>{value}</div>
-                </div>
-              ))}
-            </div>
-
-            {(() => {
-              const meta = STATUS_META[selectedImport.status] || { color: C.mutedGray, bg: C.surfaceAlt, icon: "?" };
-              return (
-                <div style={{ padding: "12px 16px", background: meta.bg, borderRadius: 8, marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: meta.color }}>{meta.icon} {selectedImport.status}</span>
-                  <span style={{ fontSize: 20, fontFamily: "'Bebas Neue', sans-serif", color: C.darkGray }}>TOTAL: ${(parseFloat(selectedImport.total_cost) || 0).toFixed(2)}</span>
-                </div>
-              );
-            })()}
-
-            <div style={{ fontSize: 11, letterSpacing: 1, textTransform: "uppercase", color: C.mutedGray, fontWeight: 600, marginBottom: 12 }}>
-              Products ({selectedItems.length})
-            </div>
-
-            <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
-              <thead>
-                <tr style={{ borderBottom: `2px solid ${C.border}` }}>
-                  {["Code", "Product", "Qty", "Unit Cost", "Subtotal"].map(h => (
-                    <th key={h} style={{ padding: "6px 8px", textAlign: "left", color: C.mutedGray, fontWeight: 600, fontSize: 10, textTransform: "uppercase" }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {selectedItems.map((it, i) => (
-                  <tr key={i} className="row-hover" style={{ borderBottom: `1px solid ${C.border}` }}>
-                    <td style={{ padding: "8px 8px", color: C.primary, fontWeight: 700 }}>{it.product_code}</td>
-                    <td style={{ padding: "8px 8px", color: C.darkGray }}>{it.product_name}</td>
-                    <td style={{ padding: "8px 8px", color: C.medGray }}>{it.quantity}</td>
-                    <td style={{ padding: "8px 8px", color: C.medGray }}>${(parseFloat(it.unit_cost) || 0).toFixed(2)}</td>
-                    <td style={{ padding: "8px 8px", color: C.darkGray, fontWeight: 700 }}>${((it.quantity || 0) * (parseFloat(it.unit_cost) || 0)).toFixed(2)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            {selectedImport.notes && (
-              <div style={{ marginTop: 14, padding: "10px 14px", background: C.surfaceAlt, borderRadius: 8, fontSize: 12, color: C.medGray }}>
-                <span style={{ fontWeight: 600, color: C.darkGray }}>Notes: </span>{selectedImport.notes}
-              </div>
-            )}
-          </Card>
-        )}
-
-        {/* New Import Form */}
-        {showForm && (
-          <Card>
-            <SectionTitle label="New Order" title="Create Import" />
-            <form onSubmit={handleSubmit}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
-                <div>
-                  <label style={{ fontSize: 11, color: C.mutedGray, fontWeight: 600, display: "block", marginBottom: 4 }}>Date</label>
-                  <input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} style={iStyle} />
-                </div>
-                <div>
-                  <label style={{ fontSize: 11, color: C.mutedGray, fontWeight: 600, display: "block", marginBottom: 4 }}>Supplier *</label>
-                  <input type="text" placeholder="Supplier name" value={form.supplier} onChange={e => setForm(f => ({ ...f, supplier: e.target.value }))} style={iStyle} list="suppliers-list" />
-                  <datalist id="suppliers-list">{SUPPLIERS_LIST.map(s => <option key={s} value={s} />)}</datalist>
-                </div>
-                <div>
-                  <label style={{ fontSize: 11, color: C.mutedGray, fontWeight: 600, display: "block", marginBottom: 4 }}>Invoice Number</label>
-                  <input type="text" placeholder="INV-001" value={form.invoice_number} onChange={e => setForm(f => ({ ...f, invoice_number: e.target.value }))} style={iStyle} />
-                </div>
-                <div>
-                  <label style={{ fontSize: 11, color: C.mutedGray, fontWeight: 600, display: "block", marginBottom: 4 }}>Origin</label>
-                  <select value={form.origin} onChange={e => setForm(f => ({ ...f, origin: e.target.value }))} style={iStyle}>
-                    {ORIGINS.map(o => <option key={o} value={o}>{o}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label style={{ fontSize: 11, color: C.mutedGray, fontWeight: 600, display: "block", marginBottom: 4 }}>Freight Cost (USD)</label>
-                  <input type="number" step="0.01" min="0" placeholder="0.00" value={form.freight_cost} onChange={e => setForm(f => ({ ...f, freight_cost: e.target.value }))} style={iStyle} />
-                </div>
-                <div>
-                  <label style={{ fontSize: 11, color: C.mutedGray, fontWeight: 600, display: "block", marginBottom: 4 }}>Taxes (USD)</label>
-                  <input type="number" step="0.01" min="0" placeholder="0.00" value={form.taxes} onChange={e => setForm(f => ({ ...f, taxes: e.target.value }))} style={iStyle} />
-                </div>
-              </div>
-
-              <div style={{ fontSize: 11, color: C.mutedGray, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>Products</div>
-
-              {items.map((item, idx) => (
-                <div key={idx} style={{ padding: 12, border: `1px solid ${C.border}`, borderRadius: 8, marginBottom: 10, background: C.surfaceAlt }}>
-                  <div style={{ position: "relative", marginBottom: 8 }}>
-                    <input
-                      type="text"
-                      placeholder="Search product by name or code..."
-                      value={prodSearch[idx] || ""}
-                      onChange={e => {
-                        setProdSearch(prev => ({ ...prev, [idx]: e.target.value }));
-                        setShowDropdown(prev => ({ ...prev, [idx]: true }));
-                        updateItem(idx, "product_code", "");
-                      }}
-                      onFocus={() => setShowDropdown(prev => ({ ...prev, [idx]: true }))}
-                      style={{ ...iStyle, background: C.surface }}
-                    />
-                    {showDropdown[idx] && (
-                      <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 50, maxHeight: 180, overflowY: "auto", marginTop: 4 }}>
-                        {filteredProds(idx).map(p => (
-                          <div
-                            key={p.id}
-                            onClick={() => selectProductForItem(idx, p)}
-                            style={{ padding: "8px 12px", cursor: "pointer", fontSize: 12, borderBottom: `1px solid ${C.border}` }}
-                            onMouseEnter={e => e.currentTarget.style.background = C.surfaceAlt}
-                            onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-                          >
-                            <span style={{ color: C.primary, fontWeight: 700, marginRight: 8 }}>{p.code}</span>{p.name}
-                            <span style={{ float: "right", color: C.mutedGray }}>Stock: {p.stock}</span>
-                          </div>
-                        ))}
-                        {filteredProds(idx).length === 0 && <div style={{ padding: "10px 12px", color: C.mutedGray, fontSize: 12 }}>No products found. You can type manually.</div>}
-                      </div>
-                    )}
-                  </div>
-                  {!item.product_id && (
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
-                      <input type="text" placeholder="Product Code" value={item.product_code} onChange={e => updateItem(idx, "product_code", e.target.value)} style={{ ...iStyle, padding: "7px 10px" }} />
-                      <input type="text" placeholder="Product Name" value={item.product_name} onChange={e => updateItem(idx, "product_name", e.target.value)} style={{ ...iStyle, padding: "7px 10px" }} />
-                    </div>
-                  )}
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr auto", gap: 8, alignItems: "end" }}>
-                    <div>
-                      <label style={{ fontSize: 10, color: C.mutedGray, fontWeight: 600, display: "block", marginBottom: 3 }}>Qty</label>
-                      <input type="number" min="1" value={item.quantity} onChange={e => updateItem(idx, "quantity", e.target.value)} style={{ ...iStyle, padding: "7px 10px" }} />
-                    </div>
-                    <div>
-                      <label style={{ fontSize: 10, color: C.mutedGray, fontWeight: 600, display: "block", marginBottom: 3 }}>Unit Cost (USD)</label>
-                      <input type="number" step="0.01" min="0" value={item.unit_cost} onChange={e => updateItem(idx, "unit_cost", e.target.value)} style={{ ...iStyle, padding: "7px 10px" }} />
-                    </div>
-                    <div>
-                      <label style={{ fontSize: 10, color: C.mutedGray, fontWeight: 600, display: "block", marginBottom: 3 }}>Retail Price</label>
-                      <input type="number" step="0.01" min="0" value={item.unit_price} onChange={e => updateItem(idx, "unit_price", e.target.value)} style={{ ...iStyle, padding: "7px 10px" }} />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeItem(idx)}
-                      disabled={items.length === 1}
-                      style={{ background: C.redBg, border: "none", color: C.red, borderRadius: 6, padding: "7px 12px", cursor: "pointer", fontWeight: 700, fontSize: 14 }}
-                    >
-                      ×
-                    </button>
-                  </div>
-                </div>
-              ))}
-
-              <button
-                type="button"
-                onClick={addItem}
-                style={{ background: "transparent", border: `1px dashed ${C.border}`, borderRadius: 8, padding: "9px 16px", fontSize: 13, cursor: "pointer", color: C.medGray, fontFamily: "'DM Sans', sans-serif", width: "100%", marginBottom: 14 }}
-              >
-                + Add Product
-              </button>
-
-              <div style={{ padding: "12px 16px", background: `${C.primary}10`, borderRadius: 8, marginBottom: 16 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
-                  <span style={{ color: C.medGray }}>Items subtotal</span>
-                  <span>${items.reduce((s, it) => s + ((parseInt(it.quantity) || 0) * (parseFloat(it.unit_cost) || 0)), 0).toFixed(2)}</span>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
-                  <span style={{ color: C.medGray }}>Freight</span>
-                  <span>${(parseFloat(form.freight_cost) || 0).toFixed(2)}</span>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
-                  <span style={{ color: C.medGray }}>Taxes</span>
-                  <span>${(parseFloat(form.taxes) || 0).toFixed(2)}</span>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 16, fontWeight: 700, borderTop: `1px solid ${C.border}`, marginTop: 8, paddingTop: 8 }}>
-                  <span style={{ color: C.darkGray }}>TOTAL</span>
-                  <span style={{ color: C.primary, fontFamily: "'Bebas Neue', sans-serif", fontSize: 22 }}>${calcTotal().toFixed(2)}</span>
-                </div>
-              </div>
-
-              <div style={{ marginBottom: 14 }}>
-                <label style={{ fontSize: 11, color: C.mutedGray, fontWeight: 600, display: "block", marginBottom: 4 }}>Notes</label>
-                <input type="text" placeholder="Additional notes..." value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} style={iStyle} />
-              </div>
-
-              <button
-                type="submit"
-                className="btn-primary"
-                disabled={saving}
-                style={{ width: "100%", background: saving ? C.mutedGray : C.primary, color: "white", border: "none", borderRadius: 10, padding: "13px 20px", fontSize: 14, fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", fontFamily: "'DM Sans', sans-serif" }}
-              >
-                {saving ? "Creating Order..." : `Create Import · $${calcTotal().toFixed(2)}`}
-              </button>
-            </form>
-          </Card>
-        )}
-      </div>
       </div>
     </div>
   );

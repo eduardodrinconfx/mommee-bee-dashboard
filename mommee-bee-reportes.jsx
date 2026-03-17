@@ -5,413 +5,407 @@ import {
   XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid,
 } from "recharts";
 
-const C = {
-  primary: "#CC9F75",
-  accent: "#B36A23",
-  dark: "#4C5155",
-  bg: "#EDEFEA",
-  surface: "#ffffff",
-  surfaceAlt: "#f3f3f2",
-  border: "#d0d0cf",
-  darkGray: "#1a1a1a",
-  medGray: "#4a4a4a",
-  mutedGray: "#888888",
-  green: "#16a34a",    greenBg: "#dcfce7",
-  red: "#dc2626",      redBg: "#fee2e2",
-  yellow: "#d97706",   yellowBg: "#fef3c7",
-  blue: "#2563eb",     blueBg: "#dbeafe",
-  purple: "#7c3aed",   purpleBg: "#ede9fe",
-  beige: "#D9CCBD",
-  lightBlue: "#CEDBE6",
-  gray: "#727375",
-};
+var MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+var PLATFORMS = ["All", "Instagram", "WhatsApp", "Website", "Boutique", "Marketplace"];
+var PIE_COLORS = ["var(--accent)", "#D9CCBD", "#CC9F75", "#CEDBE6", "#ff9500", "#34c759", "#007aff", "#af52de"];
+var PIE_HEX = ["#CC9F75", "#D9CCBD", "#B36A23", "#CEDBE6", "#ff9500", "#34c759", "#007aff", "#af52de"];
 
-const PIE_COLORS = [C.primary, C.beige, C.primary, C.beige, C.lightBlue, C.yellow, C.green, C.blue];
+function fmtD(v) { return "$" + v.toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 
-const Card = ({ children, style }) => (
-  <div style={{
-    background: C.surface,
-    border: `1px solid ${C.border}`,
-    borderRadius: 14,
-    padding: 20,
-    boxShadow: "0 1px 6px rgba(76,81,85,0.06)",
-    ...style,
-  }}>
-    {children}
-  </div>
-);
-
-const SectionTitle = ({ label, title }) => (
-  <div style={{ marginBottom: 16 }}>
-    <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: C.primary, fontWeight: 700, marginBottom: 2 }}>{label}</div>
-    <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: C.darkGray, letterSpacing: 1 }}>{title}</div>
-  </div>
-);
-
-const iStyle = {
-  background: C.surface,
-  border: `1px solid ${C.border}`,
-  borderRadius: 8,
-  padding: "9px 12px",
-  fontSize: 13,
-  fontFamily: "'DM Sans', sans-serif",
-  color: C.darkGray,
-  outline: "none",
-};
-
-const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-const PLATFORMS = ["All", "Instagram", "WhatsApp", "Website", "Boutique", "Marketplace"];
-
-const CustomTooltip = ({ active, payload, label }) => {
+function CustomTooltip(props) {
+  var active = props.active;
+  var payload = props.payload;
+  var label = props.label;
   if (active && payload && payload.length) {
     return (
-      <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: C.darkGray, marginBottom: 4 }}>{label}</div>
-        {payload.map((entry, i) => (
-          <div key={i} style={{ fontSize: 12, color: entry.color }}>
-            {entry.name}: <strong>${(entry.value || 0).toFixed(2)}</strong>
-          </div>
-        ))}
+      <div style={{
+        background: "var(--white)", border: "1px solid var(--border)",
+        borderRadius: "var(--rs)", padding: "10px 14px", boxShadow: "var(--sh-md)",
+        fontFamily: "var(--font)",
+      }}>
+        <div style={{ fontSize: "12px", fontWeight: 600, marginBottom: "4px", letterSpacing: "-0.01em" }}>{label}</div>
+        {payload.map(function(entry, i) {
+          return (
+            <div key={i} style={{ fontSize: "12px", color: entry.color, fontFamily: "var(--mono)" }}>
+              {entry.name + ": $" + (entry.value || 0).toFixed(2)}
+            </div>
+          );
+        })}
       </div>
     );
   }
   return null;
-};
+}
 
-export default function MommeeReportes({ onNavigate }) {
-  const [sales, setSales] = useState([]);
-  const [saleItems, setSaleItems] = useState([]);
-  const [expenses, setExpenses] = useState([]);
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
+export default function MommeeReportes(props) {
+  var onNavigate = props.onNavigate || function() {};
 
-  const year = new Date().getFullYear();
-  const [filterPlatform, setFilterPlatform] = useState("All");
-  const [filterType, setFilterType] = useState("All");
-  const [dateFrom, setDateFrom] = useState(`${year}-01-01`);
-  const [dateTo, setDateTo] = useState(new Date().toISOString().split("T")[0]);
+  var salesState = useState([]);        var sales = salesState[0];           var setSales = salesState[1];
+  var siState = useState([]);           var saleItems = siState[0];          var setSaleItems = siState[1];
+  var expState = useState([]);          var expenses = expState[0];          var setExpenses = expState[1];
+  var prodState = useState([]);         var products = prodState[0];         var setProducts = prodState[1];
+  var loadingState = useState(true);    var loading = loadingState[0];       var setLoading = loadingState[1];
 
-  useEffect(() => { loadData(); }, []);
+  var year = new Date().getFullYear();
+  var fpState = useState("All");        var filterPlatform = fpState[0];     var setFilterPlatform = fpState[1];
+  var ftState = useState("All");        var filterType = ftState[0];         var setFilterType = ftState[1];
+  var dfState = useState(year + "-01-01"); var dateFrom = dfState[0];        var setDateFrom = dfState[1];
+  var dtState = useState(new Date().toISOString().split("T")[0]); var dateTo = dtState[0]; var setDateTo = dtState[1];
 
-  async function loadData() {
+  var now = new Date();
+  var cm = now.getMonth();
+  var cy = now.getFullYear();
+  var dateLabel = MONTHS[cm] + " " + (now.getDate() < 10 ? "0" : "") + now.getDate() + ", " + cy;
+
+  useEffect(function() { loadData(); }, []);
+
+  function loadData() {
     setLoading(true);
-    const yearStart = `${year}-01-01`;
-    const [sR, siR, eR, pR] = await Promise.all([
+    var yearStart = year + "-01-01";
+    Promise.all([
       supabase.from("sales").select("*").gte("date", yearStart).order("date"),
       supabase.from("sale_items").select("*"),
       supabase.from("expenses").select("*").gte("date", yearStart),
       supabase.from("products").select("id,cost"),
-    ]);
-    if (sR.data) setSales(sR.data);
-    if (siR.data) setSaleItems(siR.data);
-    if (eR.data) setExpenses(eR.data);
-    if (pR.data) setProducts(pR.data);
-    setLoading(false);
+    ]).then(function(results) {
+      if (results[0].data) setSales(results[0].data);
+      if (results[1].data) setSaleItems(results[1].data);
+      if (results[2].data) setExpenses(results[2].data);
+      if (results[3].data) setProducts(results[3].data);
+      setLoading(false);
+    });
   }
 
   // Filtered sales
-  const filteredSales = sales.filter(s => {
+  var filteredSales = sales.filter(function(s) {
     if (s.date < dateFrom || s.date > dateTo) return false;
     if (filterPlatform !== "All" && s.platform !== filterPlatform) return false;
     if (filterType !== "All" && s.sale_type !== filterType) return false;
     return true;
   });
 
-  const filteredExpenses = expenses.filter(e => e.date >= dateFrom && e.date <= dateTo);
+  var filteredExpenses = expenses.filter(function(e) { return e.date >= dateFrom && e.date <= dateTo; });
 
   // Product cost map
-  const costMap = {};
-  products.forEach(p => { costMap[p.id] = parseFloat(p.cost) || 0; });
+  var costMap = {};
+  products.forEach(function(p) { costMap[p.id] = parseFloat(p.cost) || 0; });
 
   // Monthly data for charts
-  const monthlyData = MONTHS.map((m, idx) => {
-    const mSales = filteredSales.filter(s => {
-      const d = new Date(s.date);
-      return d.getMonth() === idx && d.getFullYear() === year;
-    });
-    const mGross = mSales.reduce((sum, s) => sum + (parseFloat(s.total_usd) || 0), 0);
-
-    const mSaleIds = new Set(mSales.map(s => s.id));
-    const mItems = saleItems.filter(si => mSaleIds.has(si.sale_id));
-    const mCOGS = mItems.reduce((sum, si) => {
-      const cost = costMap[si.product_id] || 0;
-      return sum + si.quantity * cost;
-    }, 0);
-
-    const mExp = filteredExpenses.filter(e => {
-      const d = new Date(e.date);
-      return d.getMonth() === idx && d.getFullYear() === year;
-    });
-    const mOPEX = mExp.reduce((sum, e) => sum + (parseFloat(e.amount_usd) || 0), 0);
-
-    const mProfit = mGross - mCOGS - mOPEX;
-
-    return { month: m, sales: mGross, profit: mProfit, cogs: mCOGS, opex: mOPEX, txns: mSales.length };
+  var monthlyData = MONTHS.map(function(m, idx) {
+    var mSales = filteredSales.filter(function(s) { var d = new Date(s.date); return d.getMonth() === idx && d.getFullYear() === year; });
+    var mGross = mSales.reduce(function(sum, s) { return sum + (parseFloat(s.total_usd) || 0); }, 0);
+    var mSaleIds = new Set(mSales.map(function(s) { return s.id; }));
+    var mItems = saleItems.filter(function(si) { return mSaleIds.has(si.sale_id); });
+    var mCOGS = mItems.reduce(function(sum, si) { return sum + si.quantity * (costMap[si.product_id] || 0); }, 0);
+    var mExp = filteredExpenses.filter(function(e) { var d = new Date(e.date); return d.getMonth() === idx && d.getFullYear() === year; });
+    var mOPEX = mExp.reduce(function(sum, e) { return sum + (parseFloat(e.amount_usd) || 0); }, 0);
+    return { month: m, sales: mGross, profit: mGross - mCOGS - mOPEX, cogs: mCOGS, opex: mOPEX, txns: mSales.length };
   });
 
   // Platform distribution
-  const platformMap = {};
-  filteredSales.forEach(s => {
-    const plat = s.platform || "Other";
-    platformMap[plat] = (platformMap[plat] || 0) + (parseFloat(s.total_usd) || 0);
-  });
-  const platformData = Object.entries(platformMap)
-    .sort((a, b) => b[1] - a[1])
-    .map(([name, value]) => ({ name, value: parseFloat(value.toFixed(2)) }));
+  var platformMap = {};
+  filteredSales.forEach(function(s) { var plat = s.platform || "Other"; platformMap[plat] = (platformMap[plat] || 0) + (parseFloat(s.total_usd) || 0); });
+  var platformData = Object.entries(platformMap).sort(function(a, b) { return b[1] - a[1]; }).map(function(entry) { return { name: entry[0], value: parseFloat(entry[1].toFixed(2)) }; });
 
   // Top products
-  const prodSalesMap = {};
-  const filteredSaleIds = new Set(filteredSales.map(s => s.id));
-  saleItems.filter(si => filteredSaleIds.has(si.sale_id)).forEach(si => {
-    const key = si.product_name || si.product_code;
+  var prodSalesMap = {};
+  var filteredSaleIds = new Set(filteredSales.map(function(s) { return s.id; }));
+  saleItems.filter(function(si) { return filteredSaleIds.has(si.sale_id); }).forEach(function(si) {
+    var key = si.product_name || si.product_code;
     if (!prodSalesMap[key]) prodSalesMap[key] = { revenue: 0, qty: 0 };
     prodSalesMap[key].revenue += parseFloat(si.subtotal) || (si.quantity * parseFloat(si.unit_price));
     prodSalesMap[key].qty += si.quantity;
   });
-  const topProducts = Object.entries(prodSalesMap)
-    .sort((a, b) => b[1].revenue - a[1].revenue)
-    .slice(0, 8)
-    .map(([name, val]) => ({ name: name.length > 20 ? name.substring(0, 20) + "…" : name, revenue: parseFloat(val.revenue.toFixed(2)), qty: val.qty }));
+  var topProducts = Object.entries(prodSalesMap).sort(function(a, b) { return b[1].revenue - a[1].revenue; }).slice(0, 8).map(function(entry) {
+    var name = entry[0].length > 20 ? entry[0].substring(0, 20) + "..." : entry[0];
+    return { name: name, revenue: parseFloat(entry[1].revenue.toFixed(2)), qty: entry[1].qty };
+  });
 
-  // Summary KPIs for filtered period
-  const totalSales = filteredSales.reduce((sum, s) => sum + (parseFloat(s.total_usd) || 0), 0);
-  const filteredSaleIdsArr = Array.from(filteredSaleIds);
-  const periodItems = saleItems.filter(si => filteredSaleIds.has(si.sale_id));
-  const totalCOGS = periodItems.reduce((sum, si) => sum + si.quantity * (costMap[si.product_id] || 0), 0);
-  const totalOPEX = filteredExpenses.reduce((sum, e) => sum + (parseFloat(e.amount_usd) || 0), 0);
-  const totalProfit = totalSales - totalCOGS - totalOPEX;
-  const avgTicket = filteredSales.length > 0 ? totalSales / filteredSales.length : 0;
-  const margin = totalSales > 0 ? ((totalProfit / totalSales) * 100) : 0;
+  // Summary KPIs
+  var totalSales = filteredSales.reduce(function(sum, s) { return sum + (parseFloat(s.total_usd) || 0); }, 0);
+  var periodItems = saleItems.filter(function(si) { return filteredSaleIds.has(si.sale_id); });
+  var totalCOGS = periodItems.reduce(function(sum, si) { return sum + si.quantity * (costMap[si.product_id] || 0); }, 0);
+  var totalOPEX = filteredExpenses.reduce(function(sum, e) { return sum + (parseFloat(e.amount_usd) || 0); }, 0);
+  var totalProfit = totalSales - totalCOGS - totalOPEX;
+  var avgTicket = filteredSales.length > 0 ? totalSales / filteredSales.length : 0;
+  var margin = totalSales > 0 ? ((totalProfit / totalSales) * 100) : 0;
 
   if (loading) {
     return (
-      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "60vh" }}>
-        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 32, color: C.primary, letterSpacing: 4 }}>LOADING...</div>
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "80vh" }}>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontFamily: "var(--mono)", fontSize: "28px", fontWeight: 500, color: "var(--accent)", letterSpacing: "-0.04em", marginBottom: "8px" }}>LOADING</div>
+          <div style={{ color: "var(--muted)", fontSize: "13px" }}>Loading reports...</div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div style={{ fontFamily: "'DM Sans',sans-serif", color: C.darkGray }}>
-      <style>{`
-        @keyframes slideIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
-        .row-hover:hover{background:#f8f8f7!important}
-      `}</style>
-      <div style={{ maxWidth: "1280px", margin: "0 auto" }}>
-      <div style={{ marginBottom: "24px" }}>
-        <div style={{ fontSize: "10px", color: C.primary, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: "4px" }}>◆ Analytics</div>
-        <h1 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: "34px", letterSpacing: "0.06em", color: C.darkGray, lineHeight: 1, margin: 0 }}>REPORTS</h1>
-        <p style={{ color: C.mutedGray, fontSize: "12px", marginTop: "4px" }}>Data analytics and performance metrics</p>
-      </div>
+    <div style={{ minHeight: "100vh" }}>
 
-      {/* Filters */}
-      <Card style={{ marginBottom: 20 }}>
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-          <div>
-            <label style={{ fontSize: 10, color: C.mutedGray, fontWeight: 600, display: "block", marginBottom: 4, textTransform: "uppercase" }}>From</label>
-            <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={{ ...iStyle, width: 160 }} />
-          </div>
-          <div>
-            <label style={{ fontSize: 10, color: C.mutedGray, fontWeight: 600, display: "block", marginBottom: 4, textTransform: "uppercase" }}>To</label>
-            <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} style={{ ...iStyle, width: 160 }} />
-          </div>
-          <div>
-            <label style={{ fontSize: 10, color: C.mutedGray, fontWeight: 600, display: "block", marginBottom: 4, textTransform: "uppercase" }}>Platform</label>
-            <select value={filterPlatform} onChange={e => setFilterPlatform(e.target.value)} style={{ ...iStyle, width: 160 }}>
-              {PLATFORMS.map(p => <option key={p} value={p}>{p}</option>)}
-            </select>
-          </div>
-          <div>
-            <label style={{ fontSize: 10, color: C.mutedGray, fontWeight: 600, display: "block", marginBottom: 4, textTransform: "uppercase" }}>Sale Type</label>
-            <select value={filterType} onChange={e => setFilterType(e.target.value)} style={{ ...iStyle, width: 160 }}>
-              <option value="All">All Types</option>
-              <option value="Retail">Retail</option>
-              <option value="Wholesale">Wholesale</option>
-            </select>
-          </div>
-          <button
-            onClick={() => { setDateFrom(`${year}-01-01`); setDateTo(new Date().toISOString().split("T")[0]); setFilterPlatform("All"); setFilterType("All"); }}
-            style={{ background: C.surfaceAlt, border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 14px", fontSize: 12, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", color: C.medGray, marginTop: 18 }}
-          >
+      {/* Header */}
+      <div className="hdr">
+        <div className="hdr-left">
+          <div className="hdr-title">Reportes</div>
+          <div className="hdr-date">{dateLabel}</div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <button className="btn" onClick={function() { setDateFrom(year + "-01-01"); setDateTo(new Date().toISOString().split("T")[0]); setFilterPlatform("All"); setFilterType("All"); }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "12px", height: "12px" }}>
+              <path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/>
+              <path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/>
+            </svg>
             Reset
           </button>
         </div>
-      </Card>
-
-      {/* Summary KPIs */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 16, marginBottom: 20 }}>
-        <Card>
-          <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: C.primary, fontWeight: 700, marginBottom: 4 }}>Total Sales</div>
-          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 30, color: C.darkGray }}>${totalSales.toFixed(0)}</div>
-          <div style={{ fontSize: 11, color: C.mutedGray }}>{filteredSales.length} transactions</div>
-        </Card>
-        <Card>
-          <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: C.primary, fontWeight: 700, marginBottom: 4 }}>COGS</div>
-          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 30, color: C.red }}>${totalCOGS.toFixed(0)}</div>
-          <div style={{ fontSize: 11, color: C.mutedGray }}>Cost of goods</div>
-        </Card>
-        <Card>
-          <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: C.primary, fontWeight: 700, marginBottom: 4 }}>OPEX</div>
-          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 30, color: C.yellow }}>${totalOPEX.toFixed(0)}</div>
-          <div style={{ fontSize: 11, color: C.mutedGray }}>Expenses</div>
-        </Card>
-        <Card>
-          <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: C.primary, fontWeight: 700, marginBottom: 4 }}>Net Profit</div>
-          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 30, color: totalProfit >= 0 ? C.green : C.red }}>${totalProfit.toFixed(0)}</div>
-          <div style={{ fontSize: 11, color: C.mutedGray }}>Margin: {margin.toFixed(1)}%</div>
-        </Card>
-        <Card>
-          <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: C.primary, fontWeight: 700, marginBottom: 4 }}>Avg Ticket</div>
-          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 30, color: C.darkGray }}>${avgTicket.toFixed(2)}</div>
-          <div style={{ fontSize: 11, color: C.mutedGray }}>Per transaction</div>
-        </Card>
       </div>
 
-      {/* Charts Row 1 */}
-      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 20, marginBottom: 20 }}>
-        <Card>
-          <SectionTitle label={`Year ${year}`} title="Monthly Sales vs Profit" />
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={monthlyData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke={C.border} />
-              <XAxis dataKey="month" tick={{ fontSize: 11, fill: C.mutedGray }} />
-              <YAxis tick={{ fontSize: 11, fill: C.mutedGray }} tickFormatter={v => `$${v}`} />
-              <Tooltip content={<CustomTooltip />} />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Bar dataKey="sales" name="Sales" fill={C.primary} radius={[4, 4, 0, 0]} />
-              <Bar dataKey="profit" name="Net Profit" fill={C.dark} radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </Card>
+      <div className="content">
 
-        <Card>
-          <SectionTitle label="Channels" title="By Platform" />
-          {platformData.length === 0 && (
-            <div style={{ color: C.mutedGray, fontSize: 13, textAlign: "center", paddingTop: 80 }}>No data for selected period</div>
-          )}
-          {platformData.length > 0 && (
-            <>
-              <ResponsiveContainer width="100%" height={200}>
-                <PieChart>
-                  <Pie
-                    data={platformData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={55}
-                    outerRadius={85}
-                    paddingAngle={3}
-                    dataKey="value"
-                  >
-                    {platformData.map((entry, i) => (
-                      <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value) => [`$${value.toFixed(2)}`, "Revenue"]} />
-                </PieChart>
-              </ResponsiveContainer>
-              <div style={{ marginTop: 8 }}>
-                {platformData.map((entry, i) => (
-                  <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <div style={{ width: 10, height: 10, borderRadius: 2, background: PIE_COLORS[i % PIE_COLORS.length] }} />
-                      <span style={{ fontSize: 12, color: C.medGray }}>{entry.name}</span>
-                    </div>
-                    <div style={{ fontSize: 12 }}>
-                      <span style={{ fontWeight: 700, color: C.darkGray }}>${entry.value.toFixed(0)}</span>
-                      <span style={{ color: C.mutedGray, marginLeft: 6 }}>({((entry.value / (totalSales || 1)) * 100).toFixed(0)}%)</span>
-                    </div>
-                  </div>
-                ))}
+        {/* Filters */}
+        <div className="card" style={{ marginBottom: "16px" }}>
+          <div className="card-b" style={{ padding: "12px 22px" }}>
+            <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "flex-end" }}>
+              <div className="form-group">
+                <label className="form-label">From</label>
+                <input className="form-input" type="date" value={dateFrom} onChange={function(e) { setDateFrom(e.target.value); }} style={{ width: "155px" }} />
               </div>
-            </>
-          )}
-        </Card>
-      </div>
-
-      {/* Charts Row 2 */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
-        <Card>
-          <SectionTitle label="Trend" title="Sales vs Profit Line" />
-          <ResponsiveContainer width="100%" height={250}>
-            <LineChart data={monthlyData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke={C.border} />
-              <XAxis dataKey="month" tick={{ fontSize: 11, fill: C.mutedGray }} />
-              <YAxis tick={{ fontSize: 11, fill: C.mutedGray }} tickFormatter={v => `$${v}`} />
-              <Tooltip content={<CustomTooltip />} />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Line type="monotone" dataKey="sales" name="Sales" stroke={C.primary} strokeWidth={2.5} dot={{ fill: C.primary, r: 4 }} />
-              <Line type="monotone" dataKey="profit" name="Net Profit" stroke={C.dark} strokeWidth={2.5} dot={{ fill: C.dark, r: 4 }} strokeDasharray="6 3" />
-            </LineChart>
-          </ResponsiveContainer>
-        </Card>
-
-        <Card>
-          <SectionTitle label="Products" title="Top Sellers" />
-          {topProducts.length === 0 && (
-            <div style={{ color: C.mutedGray, fontSize: 13, textAlign: "center", paddingTop: 80 }}>No product data available</div>
-          )}
-          {topProducts.length > 0 && (
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={topProducts} layout="vertical" margin={{ top: 0, right: 20, left: 10, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke={C.border} horizontal={false} />
-                <XAxis type="number" tick={{ fontSize: 10, fill: C.mutedGray }} tickFormatter={v => `$${v}`} />
-                <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: C.medGray }} width={110} />
-                <Tooltip formatter={(value) => [`$${value.toFixed(2)}`, "Revenue"]} />
-                <Bar dataKey="revenue" name="Revenue" fill={C.primary} radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          )}
-        </Card>
-      </div>
-
-      {/* P&L Monthly Table */}
-      <Card>
-        <SectionTitle label="Financials" title={`Monthly P&L — ${year}`} />
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
-            <thead>
-              <tr style={{ borderBottom: `2px solid ${C.border}` }}>
-                {["Month", "Gross Sales", "COGS", "Gross Profit", "Gross Margin", "OPEX", "Net Profit", "Net Margin", "Txns"].map(h => (
-                  <th key={h} style={{ padding: "8px 10px", textAlign: h === "Month" ? "left" : "right", color: C.mutedGray, fontWeight: 600, fontSize: 10, textTransform: "uppercase", letterSpacing: 0.8, whiteSpace: "nowrap" }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {monthlyData.map((m, i) => {
-                const grossMargin = m.sales > 0 ? (((m.sales - m.cogs) / m.sales) * 100) : 0;
-                const netMargin = m.sales > 0 ? ((m.profit / m.sales) * 100) : 0;
-                const isCurrentMonth = i === new Date().getMonth();
-                return (
-                  <tr key={i} style={{ borderBottom: `1px solid ${C.border}`, background: isCurrentMonth ? `${C.primary}08` : "transparent" }}>
-                    <td style={{ padding: "9px 10px", color: isCurrentMonth ? C.primary : C.darkGray, fontWeight: isCurrentMonth ? 700 : 400 }}>{m.month}</td>
-                    <td style={{ textAlign: "right", padding: "9px 10px", color: C.darkGray }}>${m.sales.toFixed(2)}</td>
-                    <td style={{ textAlign: "right", padding: "9px 10px", color: C.red }}>${m.cogs.toFixed(2)}</td>
-                    <td style={{ textAlign: "right", padding: "9px 10px", color: C.darkGray }}>${(m.sales - m.cogs).toFixed(2)}</td>
-                    <td style={{ textAlign: "right", padding: "9px 10px", color: grossMargin >= 40 ? C.green : grossMargin >= 20 ? C.yellow : C.red }}>{grossMargin.toFixed(1)}%</td>
-                    <td style={{ textAlign: "right", padding: "9px 10px", color: C.yellow }}>${m.opex.toFixed(2)}</td>
-                    <td style={{ textAlign: "right", padding: "9px 10px", fontWeight: 700, color: m.profit >= 0 ? C.green : C.red }}>${m.profit.toFixed(2)}</td>
-                    <td style={{ textAlign: "right", padding: "9px 10px", color: netMargin >= 15 ? C.green : netMargin >= 5 ? C.yellow : C.red }}>{netMargin.toFixed(1)}%</td>
-                    <td style={{ textAlign: "right", padding: "9px 10px", color: C.blue }}>{m.txns}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-            <tfoot>
-              <tr style={{ borderTop: `2px solid ${C.border}`, background: C.surfaceAlt }}>
-                <td style={{ padding: "10px 10px", fontWeight: 700, color: C.darkGray }}>TOTAL</td>
-                <td style={{ textAlign: "right", padding: "10px 10px", fontWeight: 700, color: C.darkGray }}>${monthlyData.reduce((s, m) => s + m.sales, 0).toFixed(2)}</td>
-                <td style={{ textAlign: "right", padding: "10px 10px", fontWeight: 700, color: C.red }}>${monthlyData.reduce((s, m) => s + m.cogs, 0).toFixed(2)}</td>
-                <td style={{ textAlign: "right", padding: "10px 10px", fontWeight: 700, color: C.darkGray }}>${monthlyData.reduce((s, m) => s + m.sales - m.cogs, 0).toFixed(2)}</td>
-                <td style={{ textAlign: "right", padding: "10px 10px", color: C.mutedGray }}>—</td>
-                <td style={{ textAlign: "right", padding: "10px 10px", fontWeight: 700, color: C.yellow }}>${monthlyData.reduce((s, m) => s + m.opex, 0).toFixed(2)}</td>
-                <td style={{ textAlign: "right", padding: "10px 10px", fontWeight: 700, color: totalProfit >= 0 ? C.green : C.red }}>${monthlyData.reduce((s, m) => s + m.profit, 0).toFixed(2)}</td>
-                <td style={{ textAlign: "right", padding: "10px 10px", color: C.mutedGray }}>—</td>
-                <td style={{ textAlign: "right", padding: "10px 10px", fontWeight: 700, color: C.blue }}>{filteredSales.length}</td>
-              </tr>
-            </tfoot>
-          </table>
+              <div className="form-group">
+                <label className="form-label">To</label>
+                <input className="form-input" type="date" value={dateTo} onChange={function(e) { setDateTo(e.target.value); }} style={{ width: "155px" }} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Platform</label>
+                <select className="form-input" value={filterPlatform} onChange={function(e) { setFilterPlatform(e.target.value); }} style={{ width: "155px" }}>
+                  {PLATFORMS.map(function(p) { return <option key={p} value={p}>{p}</option>; })}
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Sale Type</label>
+                <select className="form-input" value={filterType} onChange={function(e) { setFilterType(e.target.value); }} style={{ width: "155px" }}>
+                  <option value="All">All Types</option>
+                  <option value="Retail">Retail</option>
+                  <option value="Wholesale">Wholesale</option>
+                </select>
+              </div>
+            </div>
+          </div>
         </div>
-      </Card>
+
+        {/* KPIs */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "14px", marginBottom: "20px" }}>
+          {[
+            { label: "Total Ventas", val: "$" + totalSales.toFixed(0), sub: filteredSales.length + " transactions",
+              icon: function() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>; } },
+            { label: "COGS", val: "$" + totalCOGS.toFixed(0), sub: "Cost of goods", red: true,
+              icon: function() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>; } },
+            { label: "OPEX", val: "$" + totalOPEX.toFixed(0), sub: "Expenses", orange: true,
+              icon: function() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>; } },
+            { label: "Net Profit", val: "$" + totalProfit.toFixed(0), sub: "Margin: " + margin.toFixed(1) + "%", green: totalProfit >= 0, red2: totalProfit < 0,
+              icon: function() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>; } },
+            { label: "Avg Ticket", val: "$" + avgTicket.toFixed(2), sub: "Per transaction",
+              icon: function() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>; } },
+          ].map(function(kpi) {
+            var color = kpi.red ? "var(--red)" : kpi.orange ? "var(--orange)" : kpi.green ? "var(--green)" : kpi.red2 ? "var(--red)" : "var(--dark)";
+            return (
+              <div key={kpi.label} className="kpi">
+                <div className="kpi-ico">{kpi.icon()}</div>
+                <div className="kpi-lbl">{kpi.label}</div>
+                <div className="kpi-val" style={{ color: color }}>{kpi.val}</div>
+                <div style={{ fontFamily: "var(--mono)", fontSize: "10px", color: "var(--muted)", marginTop: "4px" }}>{kpi.sub}</div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Charts Row 1: Bar + Pie */}
+        <div className="g21">
+          <div className="card">
+            <div className="card-h">
+              <div>
+                <div className="card-t">Ventas vs Profit Mensual</div>
+                <div className="card-sub">{"Year " + year}</div>
+              </div>
+            </div>
+            <div className="card-b">
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={monthlyData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,.06)" />
+                  <XAxis dataKey="month" tick={{ fontSize: 10, fill: "#86868b", fontFamily: "'JetBrains Mono', monospace" }} />
+                  <YAxis tick={{ fontSize: 10, fill: "#86868b", fontFamily: "'JetBrains Mono', monospace" }} tickFormatter={function(v) { return "$" + v; }} />
+                  <Tooltip content={CustomTooltip} />
+                  <Legend wrapperStyle={{ fontSize: 11, fontFamily: "'JetBrains Mono', monospace" }} />
+                  <Bar dataKey="sales" name="Sales" fill="#CC9F75" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="profit" name="Net Profit" fill="#4C5155" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="card-h">
+              <div>
+                <div className="card-t">Plataformas</div>
+                <div className="card-sub">Distribucion por canal</div>
+              </div>
+            </div>
+            <div className="card-b">
+              {platformData.length === 0 && (
+                <div style={{ color: "var(--muted)", fontSize: "13px", textAlign: "center", padding: "60px 0" }}>No data for selected period</div>
+              )}
+              {platformData.length > 0 && (
+                <div>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <PieChart>
+                      <Pie data={platformData} cx="50%" cy="50%" innerRadius={55} outerRadius={85} paddingAngle={3} dataKey="value">
+                        {platformData.map(function(entry, i) { return <Cell key={i} fill={PIE_HEX[i % PIE_HEX.length]} />; })}
+                      </Pie>
+                      <Tooltip formatter={function(value) { return ["$" + value.toFixed(2), "Revenue"]; }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="donut-leg" style={{ marginTop: "8px" }}>
+                    {platformData.map(function(entry, i) {
+                      return (
+                        <div key={i} className="donut-li">
+                          <div className="donut-dot" style={{ background: PIE_HEX[i % PIE_HEX.length] }} />
+                          <span className="donut-ll">{entry.name}</span>
+                          <span className="donut-lv">{"$" + entry.value.toFixed(0) + " (" + ((entry.value / (totalSales || 1)) * 100).toFixed(0) + "%)"}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Charts Row 2: Line + Top Products */}
+        <div className="g2">
+          <div className="card">
+            <div className="card-h">
+              <div>
+                <div className="card-t">Tendencia</div>
+                <div className="card-sub">Sales vs Profit Line</div>
+              </div>
+            </div>
+            <div className="card-b">
+              <ResponsiveContainer width="100%" height={250}>
+                <LineChart data={monthlyData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,.06)" />
+                  <XAxis dataKey="month" tick={{ fontSize: 10, fill: "#86868b", fontFamily: "'JetBrains Mono', monospace" }} />
+                  <YAxis tick={{ fontSize: 10, fill: "#86868b", fontFamily: "'JetBrains Mono', monospace" }} tickFormatter={function(v) { return "$" + v; }} />
+                  <Tooltip content={CustomTooltip} />
+                  <Legend wrapperStyle={{ fontSize: 11, fontFamily: "'JetBrains Mono', monospace" }} />
+                  <Line type="monotone" dataKey="sales" name="Sales" stroke="#CC9F75" strokeWidth={2.5} dot={{ fill: "#CC9F75", r: 4 }} />
+                  <Line type="monotone" dataKey="profit" name="Net Profit" stroke="#4C5155" strokeWidth={2.5} dot={{ fill: "#4C5155", r: 4 }} strokeDasharray="6 3" />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="card-h">
+              <div>
+                <div className="card-t">Top Productos</div>
+                <div className="card-sub">By revenue</div>
+              </div>
+            </div>
+            <div className="card-b">
+              {topProducts.length === 0 && (
+                <div style={{ color: "var(--muted)", fontSize: "13px", textAlign: "center", padding: "60px 0" }}>No product data available</div>
+              )}
+              {topProducts.length > 0 && (
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={topProducts} layout="vertical" margin={{ top: 0, right: 20, left: 10, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,.06)" horizontal={false} />
+                    <XAxis type="number" tick={{ fontSize: 10, fill: "#86868b", fontFamily: "'JetBrains Mono', monospace" }} tickFormatter={function(v) { return "$" + v; }} />
+                    <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: "#4C5155" }} width={110} />
+                    <Tooltip formatter={function(value) { return ["$" + value.toFixed(2), "Revenue"]; }} />
+                    <Bar dataKey="revenue" name="Revenue" fill="#CC9F75" radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* P&L Monthly Table */}
+        <div className="card">
+          <div className="card-h">
+            <div>
+              <div className="card-t">P&L Mensual</div>
+              <div className="card-sub">{"Financials — " + year}</div>
+            </div>
+          </div>
+          <div className="card-b" style={{ padding: 0 }}>
+            <div style={{ overflowX: "auto" }}>
+              <table className="dt">
+                <thead>
+                  <tr>
+                    <th>Month</th>
+                    <th style={{ textAlign: "right" }}>Gross Sales</th>
+                    <th style={{ textAlign: "right" }}>COGS</th>
+                    <th style={{ textAlign: "right" }}>Gross Profit</th>
+                    <th style={{ textAlign: "right" }}>Margin</th>
+                    <th style={{ textAlign: "right" }}>OPEX</th>
+                    <th style={{ textAlign: "right" }}>Net Profit</th>
+                    <th style={{ textAlign: "right" }}>Net %</th>
+                    <th style={{ textAlign: "right" }}>Txns</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {monthlyData.map(function(m, i) {
+                    var grossMargin = m.sales > 0 ? (((m.sales - m.cogs) / m.sales) * 100) : 0;
+                    var netMargin = m.sales > 0 ? ((m.profit / m.sales) * 100) : 0;
+                    var isCurrentMonth = i === new Date().getMonth();
+                    return (
+                      <tr key={i} style={isCurrentMonth ? { background: "var(--accent-light)" } : {}}>
+                        <td style={isCurrentMonth ? { color: "var(--accent)", fontWeight: 600 } : {}}>{m.month}</td>
+                        <td className="mono" style={{ textAlign: "right", fontSize: "11px" }}>{"$" + m.sales.toFixed(2)}</td>
+                        <td className="mono" style={{ textAlign: "right", fontSize: "11px", color: "var(--red)" }}>{"$" + m.cogs.toFixed(2)}</td>
+                        <td className="mono" style={{ textAlign: "right", fontSize: "11px" }}>{"$" + (m.sales - m.cogs).toFixed(2)}</td>
+                        <td style={{ textAlign: "right" }}>
+                          <span className={"bdg " + (grossMargin >= 40 ? "bdg-gn" : grossMargin >= 20 ? "bdg-or" : "bdg-rd")}>{grossMargin.toFixed(1) + "%"}</span>
+                        </td>
+                        <td className="mono" style={{ textAlign: "right", fontSize: "11px", color: "var(--orange)" }}>{"$" + m.opex.toFixed(2)}</td>
+                        <td className="mono" style={{ textAlign: "right", fontSize: "11px", fontWeight: 600, color: m.profit >= 0 ? "var(--green)" : "var(--red)" }}>{"$" + m.profit.toFixed(2)}</td>
+                        <td style={{ textAlign: "right" }}>
+                          <span className={"bdg " + (netMargin >= 15 ? "bdg-gn" : netMargin >= 5 ? "bdg-or" : "bdg-rd")}>{netMargin.toFixed(1) + "%"}</span>
+                        </td>
+                        <td className="mono" style={{ textAlign: "right", fontSize: "11px", color: "var(--blue)" }}>{m.txns}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr style={{ background: "rgba(0,0,0,.03)", borderTop: "2px solid var(--border)" }}>
+                    <td style={{ fontWeight: 700 }}>TOTAL</td>
+                    <td className="mono" style={{ textAlign: "right", fontWeight: 600, fontSize: "11px" }}>{"$" + monthlyData.reduce(function(s, m) { return s + m.sales; }, 0).toFixed(2)}</td>
+                    <td className="mono" style={{ textAlign: "right", fontWeight: 600, fontSize: "11px", color: "var(--red)" }}>{"$" + monthlyData.reduce(function(s, m) { return s + m.cogs; }, 0).toFixed(2)}</td>
+                    <td className="mono" style={{ textAlign: "right", fontWeight: 600, fontSize: "11px" }}>{"$" + monthlyData.reduce(function(s, m) { return s + m.sales - m.cogs; }, 0).toFixed(2)}</td>
+                    <td style={{ textAlign: "right", color: "var(--muted)" }}>—</td>
+                    <td className="mono" style={{ textAlign: "right", fontWeight: 600, fontSize: "11px", color: "var(--orange)" }}>{"$" + monthlyData.reduce(function(s, m) { return s + m.opex; }, 0).toFixed(2)}</td>
+                    <td className="mono" style={{ textAlign: "right", fontWeight: 600, fontSize: "11px", color: totalProfit >= 0 ? "var(--green)" : "var(--red)" }}>{"$" + monthlyData.reduce(function(s, m) { return s + m.profit; }, 0).toFixed(2)}</td>
+                    <td style={{ textAlign: "right", color: "var(--muted)" }}>—</td>
+                    <td className="mono" style={{ textAlign: "right", fontWeight: 600, fontSize: "11px", color: "var(--blue)" }}>{filteredSales.length}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        {/* Summary Bar */}
+        <div className="summary-bar" style={{ marginTop: "16px" }}>
+          <div className="summary-item"><div className="summary-label">Revenue</div><div className="summary-value">{"$" + totalSales.toFixed(0)}</div></div>
+          <div className="summary-item"><div className="summary-label">COGS</div><div className="summary-value">{"$" + totalCOGS.toFixed(0)}</div></div>
+          <div className="summary-item"><div className="summary-label">OPEX</div><div className="summary-value">{"$" + totalOPEX.toFixed(0)}</div></div>
+          <div className="summary-spacer" />
+          <div className="summary-item"><div className="summary-label">Net Profit</div><div className="summary-value accent">{"$" + totalProfit.toFixed(0)}</div></div>
+        </div>
+
       </div>
     </div>
   );

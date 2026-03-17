@@ -25,6 +25,17 @@ export default function MommeeBeeApp(props) {
   var expForm = expFormState[0]; var setExpForm = expFormState[1];
   var refreshState = useState(0); var refreshKey = refreshState[0]; var setRefreshKey = refreshState[1];
 
+  var initDecisions = function() {
+    try { var s = localStorage.getItem("mb_decisions"); return s ? JSON.parse(s) : []; } catch(e) { return []; }
+  };
+  var decisionsState = useState(initDecisions); var decisions = decisionsState[0]; var setDecisions = decisionsState[1];
+  var showDecFormState = useState(false); var showDecForm = showDecFormState[0]; var setShowDecForm = showDecFormState[1];
+  var decFormState = useState({ text: "", priority: "Media" }); var decForm = decFormState[0]; var setDecForm = decFormState[1];
+
+  useEffect(function() {
+    try { localStorage.setItem("mb_decisions", JSON.stringify(decisions)); } catch(e) {}
+  }, [decisions]);
+
   useEffect(function() { loadData(); }, [refreshKey]);
 
   function loadData() {
@@ -50,6 +61,25 @@ export default function MommeeBeeApp(props) {
   }
 
   var setE = function(k) { return function(e) { setExpForm(function(f) { var n = {}; for (var x in f) n[x] = f[x]; n[k] = e.target.value; return n; }); }; };
+  var setD = function(k) { return function(e) { setDecForm(function(f) { var n = {}; for (var x in f) n[x] = f[x]; n[k] = e.target.value; return n; }); }; };
+
+  var addDecision = function() {
+    if (!decForm.text.trim()) return;
+    var newDec = { id: Date.now(), text: decForm.text.trim(), priority: decForm.priority, done: false, date: new Date().toISOString().split("T")[0] };
+    setDecisions(function(ds) { return [newDec].concat(ds); });
+    setDecForm({ text: "", priority: "Media" });
+    setShowDecForm(false);
+  };
+
+  var toggleDecision = function(id) {
+    setDecisions(function(ds) { return ds.map(function(d) { return d.id === id ? (function() { var n = {}; for (var x in d) n[x] = d[x]; n.done = !d.done; return n; })() : d; }); });
+  };
+
+  var deleteDecision = function(id) {
+    setDecisions(function(ds) { return ds.filter(function(d) { return d.id !== id; }); });
+  };
+
+  var DEC_PRIORITY_COLORS = { "Alta": "var(--red)", "Media": "var(--accent)", "Baja": "var(--green)" };
 
   var saveExpense = function() {
     var amount = parseFloat(expForm.amount) || 0;
@@ -548,6 +578,70 @@ export default function MommeeBeeApp(props) {
                 <div className="summary-spacer" />
                 <div className="summary-item"><div className="summary-label">Categories</div><div className="summary-value">{new Set(monthExpenses.map(function(e) { return e.category; })).size}</div></div>
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ROW 7: Proximas Decisiones */}
+        <div className="card">
+          <div className="card-h">
+            <div>
+              <div className="card-t">Proximas Decisiones</div>
+              <div className="card-sub">{decisions.filter(function(d) { return !d.done; }).length + " pendientes"}</div>
+            </div>
+            <button className="btn" onClick={function() { setShowDecForm(function(v) { return !v; }); }} style={{ padding: "6px 14px" }}>+ Agregar</button>
+          </div>
+          <div className="card-b">
+            {showDecForm && (
+              <div style={{ background: "var(--accent-light)", border: "1px solid var(--accent)", borderRadius: "var(--rs)", padding: "14px", marginBottom: "14px", animation: "slideIn 0.2s ease" }}>
+                <div className="form-row">
+                  <div className="form-group" style={{ gridColumn: "span 2" }}>
+                    <label className="form-label">Descripcion</label>
+                    <input className="form-input" value={decForm.text} onChange={setD("text")} placeholder="Ej: Evaluar nuevo proveedor de empaques" onKeyDown={function(e) { if (e.key === "Enter") addDecision(); }} autoFocus />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Prioridad</label>
+                    <select className="form-input" value={decForm.priority} onChange={setD("priority")}>
+                      <option>Alta</option>
+                      <option>Media</option>
+                      <option>Baja</option>
+                    </select>
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
+                  <button className="btn btn-primary" onClick={addDecision}>Guardar</button>
+                  <button className="btn" onClick={function() { setShowDecForm(false); }}>Cancelar</button>
+                </div>
+              </div>
+            )}
+
+            {decisions.length === 0 && (
+              <div style={{ textAlign: "center", padding: "32px 0", color: "var(--muted)" }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: "32px", height: "32px", margin: "0 auto 8px", display: "block", opacity: 0.3 }}>
+                  <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+                </svg>
+                No hay decisiones pendientes
+              </div>
+            )}
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "10px" }}>
+              {decisions.map(function(dec) {
+                return (
+                  <div key={dec.id} style={{ display: "flex", alignItems: "flex-start", gap: "10px", padding: "12px 14px", background: dec.done ? "#f8f8f7" : "#fff", border: "1px solid", borderColor: dec.done ? "#e5e5e5" : "var(--border)", borderRadius: "var(--rs)", opacity: dec.done ? 0.6 : 1, transition: "all 0.2s" }}>
+                    <input type="checkbox" checked={dec.done} onChange={function() { toggleDecision(dec.id); }} style={{ marginTop: "2px", accentColor: "var(--accent)", cursor: "pointer", flexShrink: 0 }} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: "13px", fontWeight: 500, color: "var(--text)", textDecoration: dec.done ? "line-through" : "none", lineHeight: 1.4 }}>{dec.text}</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "6px" }}>
+                        <span style={{ fontSize: "11px", fontWeight: 600, color: DEC_PRIORITY_COLORS[dec.priority] || "var(--accent)", textTransform: "uppercase", letterSpacing: "0.04em" }}>{dec.priority}</span>
+                        <span style={{ fontSize: "11px", color: "var(--muted)" }}>{dec.date}</span>
+                      </div>
+                    </div>
+                    <button onClick={function() { deleteDecision(dec.id); }} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", padding: "0", lineHeight: 1, flexShrink: 0 }} title="Eliminar">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "14px", height: "14px" }}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>

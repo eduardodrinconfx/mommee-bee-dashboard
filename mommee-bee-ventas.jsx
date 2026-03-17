@@ -1,75 +1,10 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./src/supabaseClient.js";
 
-const C = {
-  primary: "#CC9F75",
-  accent: "#B36A23",
-  dark: "#4C5155",
-  bg: "#EDEFEA",
-  surface: "#ffffff",
-  surfaceAlt: "#f3f3f2",
-  border: "#d0d0cf",
-  darkGray: "#1a1a1a",
-  medGray: "#4a4a4a",
-  mutedGray: "#888888",
-  green: "#16a34a",    greenBg: "#dcfce7",
-  red: "#dc2626",      redBg: "#fee2e2",
-  yellow: "#d97706",   yellowBg: "#fef3c7",
-  blue: "#2563eb",     blueBg: "#dbeafe",
-  purple: "#7c3aed",   purpleBg: "#ede9fe",
-  beige: "#D9CCBD",
-  lightBlue: "#CEDBE6",
-  gray: "#727375",
-};
-
-const Card = ({ children, style }) => (
-  <div style={{
-    background: C.surface,
-    border: `1px solid ${C.border}`,
-    borderRadius: 14,
-    padding: 20,
-    boxShadow: "0 1px 6px rgba(76,81,85,0.06)",
-    ...style,
-  }}>
-    {children}
-  </div>
-);
-
-const SectionTitle = ({ label, title, action }) => (
-  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 16 }}>
-    <div>
-      <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: C.primary, fontWeight: 700, marginBottom: 2 }}>{label}</div>
-      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: C.darkGray, letterSpacing: 1 }}>{title}</div>
-    </div>
-    {action && action}
-  </div>
-);
-
-const Divider = ({ title }) => (
-  <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
-    <div style={{ width: "3px", height: "14px", background: C.primary, borderRadius: "2px" }} />
-    <span style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", color: C.darkGray }}>{title}</span>
-    <div style={{ flex: 1, height: "1px", background: C.border }} />
-  </div>
-);
-
-const Field = ({ label, children, span }) => (
-  <div style={{ gridColumn: span ? "span " + span : undefined }}>
-    <label style={{ display: "block", fontSize: "10px", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: C.mutedGray, marginBottom: "6px" }}>{label}</label>
-    {children}
-  </div>
-);
-
-const iStyle = {
-  width: "100%", background: C.surface, border: `1px solid ${C.border}`,
-  borderRadius: "8px", padding: "10px 12px", color: C.darkGray, fontSize: "13px",
-  fontFamily: "'DM Sans',sans-serif", outline: "none", boxSizing: "border-box", transition: "border-color 0.2s",
-};
-
-const PLATFORMS = ["Instagram", "WhatsApp", "Website", "Boutique", "Marketplace"];
-const PAYMENT_METHODS = ["Mobile Payment", "Transfer", "Zelle", "Cash USD", "Cash Bs"];
-const PAYMENT_STATUSES = ["Paid", "Pending", "Partial"];
-const REGIONS = [
+var PLATFORMS = ["Instagram", "WhatsApp", "Website", "Boutique", "Marketplace"];
+var PAYMENT_METHODS = ["Mobile Payment", "Transfer", "Zelle", "Cash USD", "Cash Bs"];
+var PAYMENT_STATUSES = ["Paid", "Pending", "Partial"];
+var REGIONS = [
   "Alabama","Alaska","Arizona","Arkansas","California","Colorado","Connecticut",
   "Delaware","Florida","Georgia","Hawaii","Idaho","Illinois","Indiana","Iowa",
   "Kansas","Kentucky","Louisiana","Maine","Maryland","Massachusetts","Michigan",
@@ -80,7 +15,9 @@ const REGIONS = [
   "Wisconsin","Wyoming","International"
 ];
 
-const INITIAL_FORM = {
+var MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+var INITIAL_FORM = {
   date: new Date().toISOString().split("T")[0],
   customerName: "",
   customerPhone: "",
@@ -92,47 +29,54 @@ const INITIAL_FORM = {
   notes: "",
 };
 
-export default function MommeeVentas({ onNavigate, clients, setClients }) {
-  const [products, setProducts] = useState([]);
-  const [sales, setSales] = useState([]);
-  const [saleItems, setSaleItems] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+function fmtD(v) { return "$" + v.toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 
-  const [form, setForm] = useState(INITIAL_FORM);
-  const [cart, setCart] = useState([]);
-  const [prodSearch, setProdSearch] = useState("");
-  const [selectedProd, setSelectedProd] = useState(null);
-  const [qty, setQty] = useState(1);
-  const [showDropdown, setShowDropdown] = useState(false);
+export default function MommeeVentas(props) {
+  var onNavigate = props.onNavigate || function() {};
+  var clients = props.clients || [];
+  var setClients = props.setClients || function() {};
 
-  const [filterDate, setFilterDate] = useState("");
-  const [filterPlatform, setFilterPlatform] = useState("");
-  const [filterStatus, setFilterStatus] = useState("");
+  var productsState = useState([]);     var products = productsState[0];     var setProducts = productsState[1];
+  var salesState = useState([]);        var sales = salesState[0];           var setSales = salesState[1];
+  var saleItemsState = useState([]);    var saleItems = saleItemsState[0];   var setSaleItems = saleItemsState[1];
+  var loadingState = useState(true);    var loading = loadingState[0];       var setLoading = loadingState[1];
+  var savingState = useState(false);    var saving = savingState[0];         var setSaving = savingState[1];
 
-  const [activeTab, setActiveTab] = useState("form");
-  const [msg, setMsg] = useState("");
+  var formState = useState(INITIAL_FORM); var form = formState[0]; var setForm = formState[1];
+  var cartState = useState([]);         var cart = cartState[0];             var setCart = cartState[1];
+  var searchState = useState("");       var prodSearch = searchState[0];     var setProdSearch = searchState[1];
+  var selState = useState(null);        var selectedProd = selState[0];      var setSelectedProd = selState[1];
+  var qtyState = useState(1);           var qty = qtyState[0];              var setQty = qtyState[1];
+  var ddState = useState(false);        var showDropdown = ddState[0];       var setShowDropdown = ddState[1];
 
-  useEffect(() => { loadData(); }, []);
+  var fdState = useState("");           var filterDate = fdState[0];         var setFilterDate = fdState[1];
+  var fpState = useState("");           var filterPlatform = fpState[0];     var setFilterPlatform = fpState[1];
+  var fsState = useState("");           var filterStatus = fsState[0];       var setFilterStatus = fsState[1];
 
-  async function loadData() {
+  var tabState = useState("form");      var activeTab = tabState[0];         var setActiveTab = tabState[1];
+  var msgState = useState("");          var msg = msgState[0];               var setMsg = msgState[1];
+
+  useEffect(function() { loadData(); }, []);
+
+  function loadData() {
     setLoading(true);
-    const year = new Date().getFullYear();
-    const yearStart = `${year}-01-01`;
-    const [pR, sR, siR] = await Promise.all([
+    var year = new Date().getFullYear();
+    var yearStart = year + "-01-01";
+    Promise.all([
       supabase.from("products").select("*").eq("status", "Active").order("name"),
       supabase.from("sales").select("*").gte("date", yearStart).order("date", { ascending: false }),
       supabase.from("sale_items").select("*"),
-    ]);
-    if (pR.data) setProducts(pR.data);
-    if (sR.data) setSales(sR.data);
-    if (siR.data) setSaleItems(siR.data);
-    setLoading(false);
+    ]).then(function(results) {
+      if (results[0].data) setProducts(results[0].data);
+      if (results[1].data) setSales(results[1].data);
+      if (results[2].data) setSaleItems(results[2].data);
+      setLoading(false);
+    });
   }
 
-  const filteredProds = products.filter(p => {
+  var filteredProds = products.filter(function(p) {
     if (!prodSearch) return true;
-    const q = prodSearch.toLowerCase();
+    var q = prodSearch.toLowerCase();
     return p.name.toLowerCase().includes(q) || p.code.toLowerCase().includes(q);
   });
 
@@ -144,28 +88,31 @@ export default function MommeeVentas({ onNavigate, clients, setClients }) {
 
   function addToCart() {
     if (!selectedProd) return;
-    const price = form.saleType === "Wholesale"
+    var price = form.saleType === "Wholesale"
       ? parseFloat(selectedProd.price_mayor)
       : parseFloat(selectedProd.price_detal);
-    const q = parseInt(qty) || 1;
+    var q = parseInt(qty) || 1;
 
-    setCart(prev => {
-      const existing = prev.find(item => item.product_id === selectedProd.id);
+    setCart(function(prev) {
+      var existing = prev.find(function(item) { return item.product_id === selectedProd.id; });
       if (existing) {
-        return prev.map(item =>
-          item.product_id === selectedProd.id
-            ? { ...item, quantity: item.quantity + q }
-            : item
-        );
+        return prev.map(function(item) {
+          if (item.product_id === selectedProd.id) {
+            var copy = {}; for (var k in item) copy[k] = item[k];
+            copy.quantity = item.quantity + q;
+            return copy;
+          }
+          return item;
+        });
       }
-      return [...prev, {
+      return prev.concat([{
         product_id: selectedProd.id,
         product_code: selectedProd.code,
         product_name: selectedProd.name,
         quantity: q,
         unit_price: price,
         cost: parseFloat(selectedProd.cost) || 0,
-      }];
+      }]);
     });
 
     setSelectedProd(null);
@@ -174,519 +121,547 @@ export default function MommeeVentas({ onNavigate, clients, setClients }) {
   }
 
   function removeFromCart(productId) {
-    setCart(prev => prev.filter(item => item.product_id !== productId));
+    setCart(function(prev) { return prev.filter(function(item) { return item.product_id !== productId; }); });
   }
 
   function updateCartQty(productId, newQty) {
-    const q = parseInt(newQty) || 1;
-    setCart(prev => prev.map(item =>
-      item.product_id === productId ? { ...item, quantity: q } : item
-    ));
+    var q = parseInt(newQty) || 1;
+    setCart(function(prev) {
+      return prev.map(function(item) {
+        if (item.product_id === productId) {
+          var copy = {}; for (var k in item) copy[k] = item[k];
+          copy.quantity = q;
+          return copy;
+        }
+        return item;
+      });
+    });
   }
 
-  const cartTotal = cart.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
+  var cartTotal = cart.reduce(function(sum, item) { return sum + item.quantity * item.unit_price; }, 0);
 
-  async function handleSubmit(e) {
-    e.preventDefault();
+  function handleSubmit(e) {
+    if (e) e.preventDefault();
     if (cart.length === 0) { setMsg("Add at least one product to the cart."); return; }
     setSaving(true);
     setMsg("");
 
-    let clientId = null;
+    var clientId = null;
+    var doSave = function() {
+      var saleRow = {
+        date: form.date,
+        client_id: clientId,
+        customer_name: form.customerName,
+        platform: form.platform,
+        payment_method: form.paymentMethod,
+        payment_status: form.paymentStatus,
+        sale_type: form.saleType,
+        vz_state: form.region,
+        notes: form.notes,
+        total_usd: cartTotal,
+      };
+      supabase.from("sales").insert(saleRow).select().single().then(function(res) {
+        if (res.error) { setMsg("Error saving sale: " + res.error.message); setSaving(false); return; }
+        var saleData = res.data;
+        var items = cart.map(function(item) {
+          return {
+            sale_id: saleData.id,
+            product_id: item.product_id,
+            product_code: item.product_code,
+            product_name: item.product_name,
+            quantity: item.quantity,
+            unit_price: item.unit_price,
+          };
+        });
+        supabase.from("sale_items").insert(items).then(function() {
+          var updates = cart.map(function(item) {
+            var prod = products.find(function(p) { return p.id === item.product_id; });
+            if (prod) {
+              var newStock = Math.max(0, (prod.stock || 0) - item.quantity);
+              return supabase.from("products").update({ stock: newStock, updated_at: new Date().toISOString() }).eq("id", item.product_id);
+            }
+            return Promise.resolve();
+          });
+          Promise.all(updates).then(function() {
+            setMsg("Sale saved successfully!");
+            setCart([]);
+            setForm(INITIAL_FORM);
+            setSaving(false);
+            loadData();
+            setTimeout(function() { setMsg(""); }, 3000);
+          });
+        });
+      });
+    };
+
     if (form.customerPhone) {
-      const found = clients.find(c => c.phone === form.customerPhone);
+      var found = clients.find(function(c) { return c.phone === form.customerPhone; });
       if (found) {
         clientId = found.id;
+        doSave();
       } else if (form.customerName) {
-        const { data: newClient } = await supabase.from("clients").insert({
+        supabase.from("clients").insert({
           name: form.customerName,
           phone: form.customerPhone,
           vz_state: form.region,
           tipo: form.saleType,
           status: "Active",
-        }).select().single();
-        if (newClient) {
-          clientId = newClient.id;
-          setClients(prev => [...prev, newClient]);
-        }
+        }).select().single().then(function(res) {
+          if (res.data) {
+            clientId = res.data.id;
+            setClients(function(prev) { return prev.concat([res.data]); });
+          }
+          doSave();
+        });
+      } else {
+        doSave();
       }
+    } else {
+      doSave();
     }
-
-    const { data: saleData, error: saleErr } = await supabase.from("sales").insert({
-      date: form.date,
-      client_id: clientId,
-      customer_name: form.customerName,
-      platform: form.platform,
-      payment_method: form.paymentMethod,
-      payment_status: form.paymentStatus,
-      sale_type: form.saleType,
-      vz_state: form.region,
-      notes: form.notes,
-      total_usd: cartTotal,
-    }).select().single();
-
-    if (saleErr) { setMsg("Error saving sale: " + saleErr.message); setSaving(false); return; }
-
-    const items = cart.map(item => ({
-      sale_id: saleData.id,
-      product_id: item.product_id,
-      product_code: item.product_code,
-      product_name: item.product_name,
-      quantity: item.quantity,
-      unit_price: item.unit_price,
-    }));
-    await supabase.from("sale_items").insert(items);
-
-    for (const item of cart) {
-      const prod = products.find(p => p.id === item.product_id);
-      if (prod) {
-        const newStock = Math.max(0, (prod.stock || 0) - item.quantity);
-        await supabase.from("products").update({ stock: newStock, updated_at: new Date().toISOString() }).eq("id", item.product_id);
-        setProducts(prev => prev.map(p => p.id === item.product_id ? { ...p, stock: newStock } : p));
-      }
-    }
-
-    setMsg("Sale saved successfully!");
-    setCart([]);
-    setForm(INITIAL_FORM);
-    setSaving(false);
-    loadData();
-    setTimeout(() => setMsg(""), 3000);
   }
 
-  const filteredSales = sales.filter(s => {
+  var filteredSales = sales.filter(function(s) {
     if (filterDate && s.date !== filterDate) return false;
     if (filterPlatform && s.platform !== filterPlatform) return false;
     if (filterStatus && s.payment_status !== filterStatus) return false;
     return true;
   });
 
-  const totalFiltered = filteredSales.reduce((sum, s) => sum + (parseFloat(s.total_usd) || 0), 0);
-  const pendingFiltered = filteredSales.filter(s => s.payment_status === "Pending" || s.payment_status === "Partial");
-  const pendingAmt = pendingFiltered.reduce((sum, s) => sum + (parseFloat(s.total_usd) || 0), 0);
-  const avgTicket = filteredSales.length > 0 ? totalFiltered / filteredSales.length : 0;
+  var totalFiltered = filteredSales.reduce(function(sum, s) { return sum + (parseFloat(s.total_usd) || 0); }, 0);
+  var pendingFiltered = filteredSales.filter(function(s) { return s.payment_status === "Pending" || s.payment_status === "Partial"; });
+  var pendingAmt = pendingFiltered.reduce(function(sum, s) { return sum + (parseFloat(s.total_usd) || 0); }, 0);
+  var avgTicket = filteredSales.length > 0 ? totalFiltered / filteredSales.length : 0;
 
-  const STATUS_STYLE = {
-    Paid: { color: C.green, bg: C.greenBg },
-    Pending: { color: C.red, bg: C.redBg },
-    Partial: { color: C.yellow, bg: C.yellowBg },
-  };
+  var now = new Date();
+  var cm = now.getMonth();
+  var cy = now.getFullYear();
+  var dateLabel = MONTHS[cm] + " " + (now.getDate() < 10 ? "0" : "") + now.getDate() + ", " + cy;
+
+  if (loading) {
+    return (
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "80vh" }}>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontFamily: "var(--mono)", fontSize: "28px", fontWeight: 500, color: "var(--accent)", letterSpacing: "-0.04em", marginBottom: "8px" }}>LOADING</div>
+          <div style={{ color: "var(--muted)", fontSize: "13px" }}>Loading sales data...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div style={{ fontFamily: "'DM Sans',sans-serif", color: C.darkGray }}>
-      <style>{`
-        @keyframes slideIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
-        @keyframes fadeIn{from{opacity:0}to{opacity:1}}
-        @keyframes pop{0%{transform:scale(0.95);opacity:0}100%{transform:scale(1);opacity:1}}
-        .btn-orange:hover{background:#b8895f!important;transform:translateY(-1px);box-shadow:0 4px 16px rgba(204,159,117,0.3)!important}
-        .btn-ghost:hover{border-color:#CC9F75!important;color:#CC9F75!important}
-        .row-hover:hover{background:#f8f8f7!important}
-      `}</style>
+    <div style={{ minHeight: "100vh" }}>
+      <style>{"\n        .sale-dd-item:hover{background:rgba(0,0,0,.03)!important}\n        .cart-item:hover{background:rgba(0,0,0,.015)}\n      "}</style>
 
-      <div style={{ maxWidth: "1280px", margin: "0 auto" }}>
-
-      {/* PAGE HEADER */}
-      <div style={{ marginBottom: "24px", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
-        <div>
-          <div style={{ fontSize: "10px", color: C.primary, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: "4px" }}>◆ Transactions</div>
-          <h1 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: "34px", letterSpacing: "0.06em", color: C.darkGray, lineHeight: 1, margin: 0 }}>SALES</h1>
-          <p style={{ color: C.mutedGray, fontSize: "12px", marginTop: "4px" }}>{sales.length} transactions · ${sales.reduce((s, v) => s + (parseFloat(v.total_usd) || 0), 0).toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} total</p>
+      {/* Header */}
+      <div className="hdr">
+        <div className="hdr-left">
+          <div className="hdr-title">Ventas</div>
+          <div className="hdr-date">{dateLabel}</div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <button className={"btn" + (activeTab === "form" ? " btn-primary" : "")} onClick={function() { setActiveTab("form"); }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "12px", height: "12px" }}>
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Nueva Venta
+          </button>
+          <button className={"btn" + (activeTab === "history" ? " btn-primary" : "")} onClick={function() { setActiveTab("history"); }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "12px", height: "12px" }}>
+              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/>
+            </svg>
+            Historial
+          </button>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
-        {[["form", "New Sale"], ["history", "Sales History"]].map(([key, label]) => (
-          <button
-            key={key}
-            className={activeTab === key ? "btn-primary" : "btn-ghost"}
-            onClick={() => setActiveTab(key)}
-            style={{
-              background: activeTab === key ? C.primary : C.surface,
-              color: activeTab === key ? "white" : C.medGray,
-              border: `1px solid ${activeTab === key ? C.primary : C.border}`,
-              borderRadius: 8,
-              padding: "9px 20px",
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: "pointer",
-              fontFamily: "'DM Sans', sans-serif",
-            }}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      <div className="content">
 
-      {activeTab === "form" && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 380px", gap: 20 }}>
-          {/* Sale Form */}
-          <Card>
-            <SectionTitle label="New Transaction" title="Register Sale" />
-            {msg && (
-              <div style={{
-                padding: "10px 14px",
-                borderRadius: 8,
-                marginBottom: 16,
-                background: msg.includes("Error") ? C.redBg : C.greenBg,
-                color: msg.includes("Error") ? C.red : C.green,
-                fontSize: 13,
-                fontWeight: 600,
-              }}>
-                {msg}
-              </div>
-            )}
-            <form onSubmit={handleSubmit}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 16 }}>
+        {msg && (
+          <div style={{
+            padding: "10px 16px", borderRadius: "var(--rs)", marginBottom: "16px",
+            background: msg.includes("Error") ? "rgba(255,59,48,.07)" : "rgba(52,199,89,.07)",
+            color: msg.includes("Error") ? "var(--red)" : "var(--green)",
+            fontSize: "13px", fontWeight: 500, fontFamily: "var(--mono)", letterSpacing: "-0.01em",
+            animation: "slideIn 0.2s ease",
+          }}>
+            {msg}
+          </div>
+        )}
+
+        {activeTab === "form" && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 360px", gap: "16px" }}>
+            {/* Sale Form */}
+            <div className="card">
+              <div className="card-h">
                 <div>
-                  <label style={{ fontSize: 11, color: C.mutedGray, fontWeight: 600, display: "block", marginBottom: 5 }}>Date</label>
-                  <input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} style={iStyle} />
-                </div>
-                <div>
-                  <label style={{ fontSize: 11, color: C.mutedGray, fontWeight: 600, display: "block", marginBottom: 5 }}>Sale Type</label>
-                  <select value={form.saleType} onChange={e => setForm(f => ({ ...f, saleType: e.target.value }))} style={iStyle}>
-                    <option value="Retail">Retail</option>
-                    <option value="Wholesale">Wholesale</option>
-                  </select>
-                </div>
-                <div>
-                  <label style={{ fontSize: 11, color: C.mutedGray, fontWeight: 600, display: "block", marginBottom: 5 }}>Platform</label>
-                  <select value={form.platform} onChange={e => setForm(f => ({ ...f, platform: e.target.value }))} style={iStyle}>
-                    {PLATFORMS.map(p => <option key={p} value={p}>{p}</option>)}
-                  </select>
+                  <div className="card-t">Registrar Venta</div>
+                  <div className="card-sub">New transaction</div>
                 </div>
               </div>
+              <div className="card-b">
+                <form onSubmit={handleSubmit}>
+                  <div className="form-row" style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
+                    <div className="form-group">
+                      <label className="form-label">Date</label>
+                      <input className="form-input" type="date" value={form.date} onChange={function(e) { setForm(function(f) { var n = {}; for (var k in f) n[k] = f[k]; n.date = e.target.value; return n; }); }} />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Sale Type</label>
+                      <select className="form-input" value={form.saleType} onChange={function(e) { setForm(function(f) { var n = {}; for (var k in f) n[k] = f[k]; n.saleType = e.target.value; return n; }); }}>
+                        <option value="Retail">Retail</option>
+                        <option value="Wholesale">Wholesale</option>
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Platform</label>
+                      <select className="form-input" value={form.platform} onChange={function(e) { setForm(function(f) { var n = {}; for (var k in f) n[k] = f[k]; n.platform = e.target.value; return n; }); }}>
+                        {PLATFORMS.map(function(p) { return <option key={p} value={p}>{p}</option>; })}
+                      </select>
+                    </div>
+                  </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
-                <div>
-                  <label style={{ fontSize: 11, color: C.mutedGray, fontWeight: 600, display: "block", marginBottom: 5 }}>Customer Name</label>
-                  <input type="text" placeholder="e.g. María García" value={form.customerName} onChange={e => setForm(f => ({ ...f, customerName: e.target.value }))} style={iStyle} />
-                </div>
-                <div>
-                  <label style={{ fontSize: 11, color: C.mutedGray, fontWeight: 600, display: "block", marginBottom: 5 }}>Phone (for CRM)</label>
-                  <input type="text" placeholder="e.g. +58 412 000 0000" value={form.customerPhone} onChange={e => setForm(f => ({ ...f, customerPhone: e.target.value }))} style={iStyle} />
-                </div>
-              </div>
+                  <div className="form-row" style={{ gridTemplateColumns: "1fr 1fr" }}>
+                    <div className="form-group">
+                      <label className="form-label">Customer Name</label>
+                      <input className="form-input" type="text" placeholder="e.g. María García" value={form.customerName} onChange={function(e) { setForm(function(f) { var n = {}; for (var k in f) n[k] = f[k]; n.customerName = e.target.value; return n; }); }} />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Phone (CRM)</label>
+                      <input className="form-input" type="text" placeholder="e.g. +58 412 000 0000" value={form.customerPhone} onChange={function(e) { setForm(function(f) { var n = {}; for (var k in f) n[k] = f[k]; n.customerPhone = e.target.value; return n; }); }} />
+                    </div>
+                  </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 20 }}>
-                <div>
-                  <label style={{ fontSize: 11, color: C.mutedGray, fontWeight: 600, display: "block", marginBottom: 5 }}>Payment Method</label>
-                  <select value={form.paymentMethod} onChange={e => setForm(f => ({ ...f, paymentMethod: e.target.value }))} style={iStyle}>
-                    {PAYMENT_METHODS.map(p => <option key={p} value={p}>{p}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label style={{ fontSize: 11, color: C.mutedGray, fontWeight: 600, display: "block", marginBottom: 5 }}>Payment Status</label>
-                  <select value={form.paymentStatus} onChange={e => setForm(f => ({ ...f, paymentStatus: e.target.value }))} style={iStyle}>
-                    {PAYMENT_STATUSES.map(p => <option key={p} value={p}>{p}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label style={{ fontSize: 11, color: C.mutedGray, fontWeight: 600, display: "block", marginBottom: 5 }}>Region</label>
-                  <select value={form.region} onChange={e => setForm(f => ({ ...f, region: e.target.value }))} style={iStyle}>
-                    {REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
-                  </select>
-                </div>
-              </div>
+                  <div className="form-row" style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
+                    <div className="form-group">
+                      <label className="form-label">Payment Method</label>
+                      <select className="form-input" value={form.paymentMethod} onChange={function(e) { setForm(function(f) { var n = {}; for (var k in f) n[k] = f[k]; n.paymentMethod = e.target.value; return n; }); }}>
+                        {PAYMENT_METHODS.map(function(p) { return <option key={p} value={p}>{p}</option>; })}
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Payment Status</label>
+                      <select className="form-input" value={form.paymentStatus} onChange={function(e) { setForm(function(f) { var n = {}; for (var k in f) n[k] = f[k]; n.paymentStatus = e.target.value; return n; }); }}>
+                        {PAYMENT_STATUSES.map(function(p) { return <option key={p} value={p}>{p}</option>; })}
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Region</label>
+                      <select className="form-input" value={form.region} onChange={function(e) { setForm(function(f) { var n = {}; for (var k in f) n[k] = f[k]; n.region = e.target.value; return n; }); }}>
+                        {REGIONS.map(function(r) { return <option key={r} value={r}>{r}</option>; })}
+                      </select>
+                    </div>
+                  </div>
 
-              {/* Product Search */}
-              <div style={{ background: C.surfaceAlt, borderRadius: 10, padding: 16, marginBottom: 16 }}>
-                <div style={{ fontSize: 11, color: C.mutedGray, fontWeight: 600, marginBottom: 10, textTransform: "uppercase", letterSpacing: 1 }}>
-                  Add Products to Cart
-                </div>
-                <div style={{ display: "flex", gap: 10 }}>
-                  <div style={{ flex: 1, position: "relative" }}>
-                    <input
-                      type="text"
-                      placeholder="Search by name or code..."
-                      value={prodSearch}
-                      onChange={e => { setProdSearch(e.target.value); setSelectedProd(null); setShowDropdown(true); }}
-                      onFocus={() => setShowDropdown(true)}
-                      style={{ ...iStyle, background: C.surface }}
-                    />
-                    {showDropdown && prodSearch && filteredProds.length > 0 && (
-                      <div style={{
-                        position: "absolute",
-                        top: "100%",
-                        left: 0,
-                        right: 0,
-                        background: C.surface,
-                        border: `1px solid ${C.border}`,
-                        borderRadius: 8,
-                        boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
-                        zIndex: 50,
-                        maxHeight: 220,
-                        overflowY: "auto",
-                        marginTop: 4,
-                      }}>
-                        {filteredProds.map(p => (
-                          <div
-                            key={p.id}
-                            onClick={() => selectProduct(p)}
-                            style={{
-                              padding: "10px 14px",
-                              cursor: "pointer",
-                              borderBottom: `1px solid ${C.border}`,
-                              fontSize: 13,
-                            }}
-                            onMouseEnter={e => e.currentTarget.style.background = C.surfaceAlt}
-                            onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-                          >
-                            <span style={{ color: C.primary, fontWeight: 700, marginRight: 8 }}>{p.code}</span>
-                            <span style={{ color: C.darkGray }}>{p.name}</span>
-                            <span style={{ color: C.mutedGray, marginLeft: 8 }}>
-                              ${form.saleType === "Wholesale" ? parseFloat(p.price_mayor).toFixed(2) : parseFloat(p.price_detal).toFixed(2)}
-                            </span>
-                            <span style={{ float: "right", fontSize: 11, color: p.stock <= p.min_stock ? C.red : C.mutedGray }}>
-                              Stock: {p.stock}
-                            </span>
+                  {/* Product Search */}
+                  <div style={{ background: "var(--accent-light)", border: "1px solid var(--border)", borderRadius: "var(--rs)", padding: "16px", marginBottom: "12px" }}>
+                    <div className="form-label" style={{ marginBottom: "10px" }}>Add Products to Cart</div>
+                    <div style={{ display: "flex", gap: "10px" }}>
+                      <div style={{ flex: 1, position: "relative" }}>
+                        <input
+                          className="form-input"
+                          type="text"
+                          placeholder="Search by name or code..."
+                          value={prodSearch}
+                          onChange={function(e) { setProdSearch(e.target.value); setSelectedProd(null); setShowDropdown(true); }}
+                          onFocus={function() { setShowDropdown(true); }}
+                          style={{ width: "100%" }}
+                        />
+                        {showDropdown && prodSearch && filteredProds.length > 0 && (
+                          <div style={{
+                            position: "absolute", top: "100%", left: 0, right: 0,
+                            background: "var(--white)", border: "1px solid var(--border)",
+                            borderRadius: "var(--rs)", boxShadow: "var(--sh-lg)",
+                            zIndex: 50, maxHeight: "220px", overflowY: "auto", marginTop: "4px",
+                          }}>
+                            {filteredProds.map(function(p) {
+                              var priceVal = form.saleType === "Wholesale" ? parseFloat(p.price_mayor).toFixed(2) : parseFloat(p.price_detal).toFixed(2);
+                              return (
+                                <div
+                                  key={p.id}
+                                  className="sale-dd-item"
+                                  onClick={function() { selectProduct(p); }}
+                                  style={{
+                                    padding: "10px 14px", cursor: "pointer",
+                                    borderBottom: "1px solid var(--sep)", fontSize: "13px",
+                                    display: "flex", alignItems: "center", gap: "8px",
+                                    transition: "background 0.2s",
+                                  }}
+                                >
+                                  <span className="bdg bdg-or">{p.code}</span>
+                                  <span style={{ flex: 1, letterSpacing: "-0.01em" }}>{p.name}</span>
+                                  <span className="mono" style={{ color: "var(--accent)" }}>{"$" + priceVal}</span>
+                                  <span className="mono" style={{ fontSize: "10px", color: p.stock <= p.min_stock ? "var(--red)" : "var(--muted)" }}>
+                                    {"Stock: " + p.stock}
+                                  </span>
+                                </div>
+                              );
+                            })}
                           </div>
-                        ))}
+                        )}
+                      </div>
+                      <input
+                        className="form-input"
+                        type="number"
+                        min="1"
+                        value={qty}
+                        onChange={function(e) { setQty(e.target.value); }}
+                        style={{ width: "70px", textAlign: "center" }}
+                      />
+                      <button
+                        type="button"
+                        className={"btn" + (selectedProd ? " btn-primary" : "")}
+                        onClick={addToCart}
+                        disabled={!selectedProd}
+                        style={selectedProd ? {} : { opacity: 0.4, cursor: "not-allowed" }}
+                      >
+                        + Add
+                      </button>
+                    </div>
+                    {selectedProd && (
+                      <div style={{ marginTop: "8px", fontSize: "12px", color: "var(--accent)", fontFamily: "var(--mono)" }}>
+                        {"Selected: " + selectedProd.name + " · $" + (form.saleType === "Wholesale" ? parseFloat(selectedProd.price_mayor).toFixed(2) : parseFloat(selectedProd.price_detal).toFixed(2))}
                       </div>
                     )}
                   </div>
-                  <input
-                    type="number"
-                    min="1"
-                    value={qty}
-                    onChange={e => setQty(e.target.value)}
-                    style={{ ...iStyle, width: 80, textAlign: "center" }}
-                  />
-                  <button
-                    type="button"
-                    className="btn-primary"
-                    onClick={addToCart}
-                    disabled={!selectedProd}
-                    style={{
-                      background: selectedProd ? C.primary : C.mutedGray,
-                      color: "white",
-                      border: "none",
-                      borderRadius: 8,
-                      padding: "9px 18px",
-                      fontSize: 13,
-                      fontWeight: 600,
-                      cursor: selectedProd ? "pointer" : "not-allowed",
-                      fontFamily: "'DM Sans', sans-serif",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    + Add
-                  </button>
-                </div>
-                {selectedProd && (
-                  <div style={{ marginTop: 8, fontSize: 12, color: C.primary }}>
-                    Selected: <strong>{selectedProd.name}</strong> · Price: <strong>${form.saleType === "Wholesale" ? parseFloat(selectedProd.price_mayor).toFixed(2) : parseFloat(selectedProd.price_detal).toFixed(2)}</strong>
+
+                  <div className="form-group">
+                    <label className="form-label">Notes (optional)</label>
+                    <input className="form-input" type="text" placeholder="Additional notes..." value={form.notes} onChange={function(e) { setForm(function(f) { var n = {}; for (var k in f) n[k] = f[k]; n.notes = e.target.value; return n; }); }} style={{ width: "100%" }} />
                   </div>
-                )}
+                </form>
               </div>
-
-              <div>
-                <label style={{ fontSize: 11, color: C.mutedGray, fontWeight: 600, display: "block", marginBottom: 5 }}>Notes (optional)</label>
-                <input type="text" placeholder="Additional notes..." value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} style={iStyle} />
-              </div>
-            </form>
-          </Card>
-
-          {/* Cart */}
-          <div>
-            <Card style={{ marginBottom: 16 }}>
-              <SectionTitle label="Cart" title="Order Summary" />
-              {cart.length === 0 && (
-                <div style={{ color: C.mutedGray, fontSize: 13, textAlign: "center", padding: "16px 0" }}>
-                  No products added yet
-                </div>
-              )}
-              {cart.map(item => (
-                <div key={item.product_id} style={{ padding: "10px 0", borderBottom: `1px solid ${C.border}` }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 12, color: C.darkGray, fontWeight: 600 }}>{item.product_name}</div>
-                      <div style={{ fontSize: 11, color: C.mutedGray }}>{item.product_code} · ${item.unit_price.toFixed(2)} each</div>
-                    </div>
-                    <button
-                      onClick={() => removeFromCart(item.product_id)}
-                      style={{ background: "none", border: "none", color: C.red, cursor: "pointer", fontSize: 16, padding: "0 4px" }}
-                    >
-                      ×
-                    </button>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <input
-                      type="number"
-                      min="1"
-                      value={item.quantity}
-                      onChange={e => updateCartQty(item.product_id, e.target.value)}
-                      style={{ ...iStyle, width: 70, padding: "6px 10px", textAlign: "center" }}
-                    />
-                    <span style={{ fontSize: 12, color: C.mutedGray }}>×</span>
-                    <span style={{ fontSize: 12, color: C.medGray }}>${item.unit_price.toFixed(2)}</span>
-                    <span style={{ marginLeft: "auto", fontSize: 14, fontWeight: 700, color: C.darkGray }}>
-                      ${(item.quantity * item.unit_price).toFixed(2)}
-                    </span>
-                  </div>
-                </div>
-              ))}
-
-              {cart.length > 0 && (
-                <div style={{ marginTop: 14, padding: "12px 14px", background: `${C.primary}10`, borderRadius: 8 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                    <span style={{ fontSize: 12, color: C.medGray }}>{cart.reduce((s, i) => s + i.quantity, 0)} items</span>
-                    <span style={{ fontSize: 12, color: C.mutedGray }}>Subtotal</span>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: 11, color: C.mutedGray }}>{form.saleType} pricing</span>
-                    <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, color: C.primary }}>
-                      ${cartTotal.toFixed(2)}
-                    </span>
-                  </div>
-                </div>
-              )}
-            </Card>
-
-            {/* Sale Info Summary */}
-            {cart.length > 0 && (
-              <Card style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 11, color: C.mutedGray, marginBottom: 8 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                    <span>Customer</span><span style={{ color: C.darkGray, fontWeight: 600 }}>{form.customerName || "—"}</span>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                    <span>Platform</span><span style={{ color: C.darkGray, fontWeight: 600 }}>{form.platform}</span>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                    <span>Payment</span><span style={{ color: C.darkGray, fontWeight: 600 }}>{form.paymentMethod}</span>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between" }}>
-                    <span>Status</span>
-                    <span style={{ color: form.paymentStatus === "Paid" ? C.green : form.paymentStatus === "Pending" ? C.red : C.yellow, fontWeight: 700 }}>
-                      {form.paymentStatus}
-                    </span>
-                  </div>
-                </div>
-              </Card>
-            )}
-
-            <button
-              className="btn-primary"
-              onClick={handleSubmit}
-              disabled={saving || cart.length === 0}
-              style={{
-                width: "100%",
-                background: saving || cart.length === 0 ? C.mutedGray : C.primary,
-                color: "white",
-                border: "none",
-                borderRadius: 10,
-                padding: "14px 20px",
-                fontSize: 15,
-                fontWeight: 700,
-                cursor: saving || cart.length === 0 ? "not-allowed" : "pointer",
-                fontFamily: "'DM Sans', sans-serif",
-                letterSpacing: 0.5,
-              }}
-            >
-              {saving ? "Saving..." : `Confirm Sale · $${cartTotal.toFixed(2)}`}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {activeTab === "history" && (
-        <div>
-          {/* KPIs */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 20 }}>
-            <Card>
-              <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: C.primary, fontWeight: 700, marginBottom: 4 }}>Total Sales</div>
-              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 32, color: C.darkGray }}>${totalFiltered.toFixed(2)}</div>
-              <div style={{ fontSize: 12, color: C.mutedGray }}>{filteredSales.length} transactions</div>
-            </Card>
-            <Card>
-              <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: C.primary, fontWeight: 700, marginBottom: 4 }}>Avg Ticket</div>
-              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 32, color: C.darkGray }}>${avgTicket.toFixed(2)}</div>
-              <div style={{ fontSize: 12, color: C.mutedGray }}>Per transaction</div>
-            </Card>
-            <Card>
-              <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: C.primary, fontWeight: 700, marginBottom: 4 }}>Pending</div>
-              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 32, color: C.red }}>${pendingAmt.toFixed(2)}</div>
-              <div style={{ fontSize: 12, color: C.mutedGray }}>{pendingFiltered.length} unpaid</div>
-            </Card>
-            <Card>
-              <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: C.primary, fontWeight: 700, marginBottom: 4 }}>Showing</div>
-              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 32, color: C.darkGray }}>{filteredSales.length}</div>
-              <div style={{ fontSize: 12, color: C.mutedGray }}>of {sales.length} total</div>
-            </Card>
-          </div>
-
-          {/* Filters */}
-          <Card style={{ marginBottom: 16 }}>
-            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-              <input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)} style={{ ...iStyle, width: 180 }} />
-              <select value={filterPlatform} onChange={e => setFilterPlatform(e.target.value)} style={{ ...iStyle, width: 180 }}>
-                <option value="">All Platforms</option>
-                {PLATFORMS.map(p => <option key={p} value={p}>{p}</option>)}
-              </select>
-              <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ ...iStyle, width: 160 }}>
-                <option value="">All Statuses</option>
-                {PAYMENT_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-              {(filterDate || filterPlatform || filterStatus) && (
-                <button
-                  className="btn-ghost"
-                  onClick={() => { setFilterDate(""); setFilterPlatform(""); setFilterStatus(""); }}
-                  style={{ background: C.surfaceAlt, border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 14px", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", color: C.medGray }}
-                >
-                  Clear Filters
-                </button>
-              )}
             </div>
-          </Card>
 
-          {/* Sales Table */}
-          <Card>
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
-                <thead>
-                  <tr style={{ borderBottom: `2px solid ${C.border}` }}>
-                    {["#", "Date", "Customer", "Platform", "Type", "Payment", "Status", "Region", "Total"].map(h => (
-                      <th key={h} style={{ padding: "8px 10px", textAlign: "left", color: C.mutedGray, fontWeight: 600, fontSize: 10, textTransform: "uppercase", letterSpacing: 0.8, whiteSpace: "nowrap" }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredSales.length === 0 && (
-                    <tr className="row-hover">
-                      <td colSpan={9} style={{ padding: 24, textAlign: "center", color: C.mutedGray }}>No sales found</td>
-                    </tr>
+            {/* Cart */}
+            <div>
+              <div className="card" style={{ marginBottom: "16px" }}>
+                <div className="card-h">
+                  <div>
+                    <div className="card-t">Carrito</div>
+                    <div className="card-sub">Order summary</div>
+                  </div>
+                  {cart.length > 0 && (
+                    <span className="bdg bdg-or">{cart.reduce(function(s, i) { return s + i.quantity; }, 0) + " items"}</span>
                   )}
-                  {filteredSales.map(s => {
-                    const ss = STATUS_STYLE[s.payment_status] || { color: C.mutedGray, bg: C.surfaceAlt };
+                </div>
+                <div className="card-b">
+                  {cart.length === 0 && (
+                    <div style={{ textAlign: "center", padding: "24px 0", color: "var(--muted)" }}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: "28px", height: "28px", margin: "0 auto 8px", display: "block", opacity: 0.3 }}>
+                        <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+                        <path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/>
+                      </svg>
+                      <div style={{ fontSize: "13px" }}>No products added yet</div>
+                    </div>
+                  )}
+                  {cart.map(function(item) {
                     return (
-                      <tr key={s.id} className="row-hover" style={{ borderBottom: `1px solid ${C.border}` }}>
-                        <td style={{ padding: "9px 10px", color: C.mutedGray }}>#{s.id}</td>
-                        <td style={{ padding: "9px 10px", color: C.darkGray, whiteSpace: "nowrap" }}>{s.date}</td>
-                        <td style={{ padding: "9px 10px", color: C.darkGray, fontWeight: 500 }}>{s.customer_name || "—"}</td>
-                        <td style={{ padding: "9px 10px", color: C.medGray }}>{s.platform}</td>
-                        <td style={{ padding: "9px 10px" }}>
-                          <span style={{ background: s.sale_type === "Wholesale" ? C.purpleBg : C.blueBg, color: s.sale_type === "Wholesale" ? C.purple : C.blue, borderRadius: 4, padding: "2px 7px", fontSize: 11, fontWeight: 600 }}>
-                            {s.sale_type}
+                      <div key={item.product_id} className="cart-item" style={{ padding: "10px 0", borderBottom: "1px solid var(--sep)", transition: "background 0.2s" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "6px" }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: "13px", fontWeight: 600, letterSpacing: "-0.01em" }}>{item.product_name}</div>
+                            <div style={{ fontFamily: "var(--mono)", fontSize: "10px", color: "var(--muted)" }}>{item.product_code + " · $" + item.unit_price.toFixed(2) + " each"}</div>
+                          </div>
+                          <button
+                            onClick={function() { removeFromCart(item.product_id); }}
+                            className="btn"
+                            style={{ padding: "2px 8px", fontSize: "14px", color: "var(--red)", border: "none", background: "rgba(255,59,48,.06)" }}
+                          >
+                            ×
+                          </button>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                          <input
+                            className="form-input"
+                            type="number"
+                            min="1"
+                            value={item.quantity}
+                            onChange={function(e) { updateCartQty(item.product_id, e.target.value); }}
+                            style={{ width: "60px", padding: "5px 8px", textAlign: "center" }}
+                          />
+                          <span style={{ fontSize: "12px", color: "var(--muted)" }}>×</span>
+                          <span className="mono" style={{ fontSize: "12px", color: "var(--muted)" }}>{"$" + item.unit_price.toFixed(2)}</span>
+                          <span className="mono" style={{ marginLeft: "auto", fontSize: "14px", fontWeight: 600, color: "var(--dark)" }}>
+                            {"$" + (item.quantity * item.unit_price).toFixed(2)}
                           </span>
-                        </td>
-                        <td style={{ padding: "9px 10px", color: C.medGray }}>{s.payment_method}</td>
-                        <td style={{ padding: "9px 10px" }}>
-                          <span style={{ background: ss.bg, color: ss.color, borderRadius: 4, padding: "2px 8px", fontSize: 11, fontWeight: 600 }}>
-                            {s.payment_status}
-                          </span>
-                        </td>
-                        <td style={{ padding: "9px 10px", color: C.medGray }}>{s.vz_state || "—"}</td>
-                        <td style={{ padding: "9px 10px", color: C.darkGray, fontWeight: 700 }}>${(parseFloat(s.total_usd) || 0).toFixed(2)}</td>
-                      </tr>
+                        </div>
+                      </div>
                     );
                   })}
-                </tbody>
-              </table>
+
+                  {cart.length > 0 && (
+                    <div className="summary-bar" style={{ marginTop: "14px" }}>
+                      <div className="summary-item">
+                        <div className="summary-label">Items</div>
+                        <div className="summary-value">{cart.reduce(function(s, i) { return s + i.quantity; }, 0)}</div>
+                      </div>
+                      <div className="summary-item">
+                        <div className="summary-label">Type</div>
+                        <div className="summary-value">{form.saleType}</div>
+                      </div>
+                      <div className="summary-spacer" />
+                      <div className="summary-item">
+                        <div className="summary-label">Total</div>
+                        <div className="summary-value accent">{"$" + cartTotal.toFixed(2)}</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Sale Info Summary */}
+              {cart.length > 0 && (
+                <div className="card" style={{ marginBottom: "16px" }}>
+                  <div className="card-b" style={{ padding: "14px 22px" }}>
+                    {[
+                      { label: "Customer", value: form.customerName || "—" },
+                      { label: "Platform", value: form.platform },
+                      { label: "Payment", value: form.paymentMethod },
+                    ].map(function(row) {
+                      return (
+                        <div key={row.label} style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
+                          <span style={{ fontFamily: "var(--mono)", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--muted)" }}>{row.label}</span>
+                          <span style={{ fontSize: "13px", fontWeight: 500, letterSpacing: "-0.01em" }}>{row.value}</span>
+                        </div>
+                      );
+                    })}
+                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                      <span style={{ fontFamily: "var(--mono)", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--muted)" }}>Status</span>
+                      <span className={"bdg " + (form.paymentStatus === "Paid" ? "bdg-gn" : form.paymentStatus === "Pending" ? "bdg-rd" : "bdg-or")}>
+                        {form.paymentStatus}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <button
+                className="btn btn-primary"
+                onClick={handleSubmit}
+                disabled={saving || cart.length === 0}
+                style={{
+                  width: "100%", padding: "14px 20px", fontSize: "13px",
+                  opacity: (saving || cart.length === 0) ? 0.4 : 1,
+                  cursor: (saving || cart.length === 0) ? "not-allowed" : "pointer",
+                }}
+              >
+                {saving ? "Saving..." : "Confirm Sale · $" + cartTotal.toFixed(2)}
+              </button>
             </div>
-          </Card>
-        </div>
-      )}
+          </div>
+        )}
+
+        {activeTab === "history" && (
+          <div>
+            {/* KPIs */}
+            <div className="g4">
+              {[
+                { label: "Total Ventas", val: fmtD(totalFiltered), sub: filteredSales.length + " transactions",
+                  icon: function() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>; } },
+                { label: "Ticket Promedio", val: fmtD(avgTicket), sub: "Per transaction",
+                  icon: function() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>; } },
+                { label: "Pendiente", val: fmtD(pendingAmt), sub: pendingFiltered.length + " unpaid", red: true,
+                  icon: function() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>; } },
+                { label: "Mostrando", val: String(filteredSales.length), sub: "of " + sales.length + " total",
+                  icon: function() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>; } },
+              ].map(function(kpi) {
+                return (
+                  <div key={kpi.label} className="kpi">
+                    <div className="kpi-ico">{kpi.icon()}</div>
+                    <div className="kpi-lbl">{kpi.label}</div>
+                    <div className="kpi-val" style={kpi.red ? { color: "var(--red)" } : {}}>{kpi.val}</div>
+                    <div style={{ fontFamily: "var(--mono)", fontSize: "10px", color: "var(--muted)", marginTop: "4px" }}>{kpi.sub}</div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Filters */}
+            <div className="card" style={{ marginBottom: "16px" }}>
+              <div className="card-b" style={{ padding: "12px 22px" }}>
+                <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
+                  <input className="form-input" type="date" value={filterDate} onChange={function(e) { setFilterDate(e.target.value); }} style={{ width: "170px" }} />
+                  <select className="form-input" value={filterPlatform} onChange={function(e) { setFilterPlatform(e.target.value); }} style={{ width: "170px" }}>
+                    <option value="">All Platforms</option>
+                    {PLATFORMS.map(function(p) { return <option key={p} value={p}>{p}</option>; })}
+                  </select>
+                  <select className="form-input" value={filterStatus} onChange={function(e) { setFilterStatus(e.target.value); }} style={{ width: "160px" }}>
+                    <option value="">All Statuses</option>
+                    {PAYMENT_STATUSES.map(function(s) { return <option key={s} value={s}>{s}</option>; })}
+                  </select>
+                  {(filterDate || filterPlatform || filterStatus) && (
+                    <button className="btn" onClick={function() { setFilterDate(""); setFilterPlatform(""); setFilterStatus(""); }}>
+                      Clear Filters
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Sales Table */}
+            <div className="card">
+              <div className="card-h">
+                <div>
+                  <div className="card-t">Historial de Ventas</div>
+                  <div className="card-sub">{filteredSales.length + " transactions · " + fmtD(totalFiltered)}</div>
+                </div>
+              </div>
+              <div className="card-b" style={{ padding: 0 }}>
+                <div style={{ overflowX: "auto" }}>
+                  <table className="dt">
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        <th>Date</th>
+                        <th>Customer</th>
+                        <th>Platform</th>
+                        <th>Type</th>
+                        <th>Payment</th>
+                        <th>Status</th>
+                        <th>Region</th>
+                        <th style={{ textAlign: "right" }}>Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredSales.length === 0 && (
+                        <tr>
+                          <td colSpan={9} style={{ textAlign: "center", color: "var(--muted)", padding: "24px" }}>No sales found</td>
+                        </tr>
+                      )}
+                      {filteredSales.map(function(s) {
+                        var statusClass = s.payment_status === "Paid" ? "bdg-gn" : s.payment_status === "Pending" ? "bdg-rd" : "bdg-or";
+                        var typeClass = s.sale_type === "Wholesale" ? "bdg-bl" : "bdg-or";
+                        return (
+                          <tr key={s.id}>
+                            <td className="mono" style={{ color: "var(--muted)", fontSize: "11px" }}>{"#" + s.id}</td>
+                            <td style={{ whiteSpace: "nowrap" }}>{s.date}</td>
+                            <td style={{ fontWeight: 500 }}>{s.customer_name || "—"}</td>
+                            <td>{s.platform}</td>
+                            <td><span className={"bdg " + typeClass}>{s.sale_type}</span></td>
+                            <td>{s.payment_method}</td>
+                            <td><span className={"bdg " + statusClass}>{s.payment_status}</span></td>
+                            <td>{s.vz_state || "—"}</td>
+                            <td className="mono" style={{ textAlign: "right", fontWeight: 600 }}>{"$" + (parseFloat(s.total_usd) || 0).toFixed(2)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            {/* Summary Bar */}
+            <div className="summary-bar" style={{ marginTop: "16px" }}>
+              <div className="summary-item"><div className="summary-label">Total Sales</div><div className="summary-value">{fmtD(totalFiltered)}</div></div>
+              <div className="summary-item"><div className="summary-label">Avg Ticket</div><div className="summary-value">{fmtD(avgTicket)}</div></div>
+              <div className="summary-item"><div className="summary-label">Pending</div><div className="summary-value" style={{ color: "var(--red)" }}>{fmtD(pendingAmt)}</div></div>
+              <div className="summary-spacer" />
+              <div className="summary-item"><div className="summary-label">Transactions</div><div className="summary-value accent">{String(filteredSales.length)}</div></div>
+            </div>
+          </div>
+        )}
 
       </div>
     </div>
