@@ -65,14 +65,14 @@ export default function MommeeBeeApp(props) {
 
   var addDecision = function() {
     if (!decForm.text.trim()) return;
-    var newDec = { id: Date.now(), text: decForm.text.trim(), priority: decForm.priority, done: false, date: new Date().toISOString().split("T")[0] };
+    var newDec = { id: Date.now(), text: decForm.text.trim(), priority: decForm.priority, status: "Pendiente", date: new Date().toISOString().split("T")[0] };
     setDecisions(function(ds) { return [newDec].concat(ds); });
     setDecForm({ text: "", priority: "Media" });
     setShowDecForm(false);
   };
 
-  var toggleDecision = function(id) {
-    setDecisions(function(ds) { return ds.map(function(d) { return d.id === id ? (function() { var n = {}; for (var x in d) n[x] = d[x]; n.done = !d.done; return n; })() : d; }); });
+  var setDecisionStatus = function(id, status) {
+    setDecisions(function(ds) { return ds.map(function(d) { if (d.id !== id) return d; var n = {}; for (var x in d) n[x] = d[x]; n.status = status; return n; }); });
   };
 
   var deleteDecision = function(id) {
@@ -80,6 +80,11 @@ export default function MommeeBeeApp(props) {
   };
 
   var DEC_PRIORITY_COLORS = { "Alta": "var(--red)", "Media": "var(--accent)", "Baja": "var(--green)" };
+  var DEC_STATUS_STYLES = {
+    "Pendiente":   { bg: "#fff",    border: "var(--border)", opacity: 1,   strike: false },
+    "Completado":  { bg: "#f0faf4", border: "#86efac",       opacity: 1,   strike: true  },
+    "Descartado":  { bg: "#f8f8f7", border: "#e5e5e5",       opacity: 0.55, strike: true  }
+  };
 
   var saveExpense = function() {
     var amount = parseFloat(expForm.amount) || 0;
@@ -587,7 +592,7 @@ export default function MommeeBeeApp(props) {
           <div className="card-h">
             <div>
               <div className="card-t">Proximas Decisiones</div>
-              <div className="card-sub">{decisions.filter(function(d) { return !d.done; }).length + " pendientes"}</div>
+              <div className="card-sub">{decisions.filter(function(d) { return d.status === "Pendiente"; }).length + " pendientes \u00B7 " + decisions.filter(function(d) { return d.status === "Completado"; }).length + " completadas \u00B7 " + decisions.filter(function(d) { return d.status === "Descartado"; }).length + " descartadas"}</div>
             </div>
             <button className="btn" onClick={function() { setShowDecForm(function(v) { return !v; }); }} style={{ padding: "6px 14px" }}>+ Agregar</button>
           </div>
@@ -626,19 +631,32 @@ export default function MommeeBeeApp(props) {
 
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "10px" }}>
               {decisions.map(function(dec) {
+                var st = DEC_STATUS_STYLES[dec.status] || DEC_STATUS_STYLES["Pendiente"];
                 return (
-                  <div key={dec.id} style={{ display: "flex", alignItems: "flex-start", gap: "10px", padding: "12px 14px", background: dec.done ? "#f8f8f7" : "#fff", border: "1px solid", borderColor: dec.done ? "#e5e5e5" : "var(--border)", borderRadius: "var(--rs)", opacity: dec.done ? 0.6 : 1, transition: "all 0.2s" }}>
-                    <input type="checkbox" checked={dec.done} onChange={function() { toggleDecision(dec.id); }} style={{ marginTop: "2px", accentColor: "var(--accent)", cursor: "pointer", flexShrink: 0 }} />
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: "13px", fontWeight: 500, color: "var(--text)", textDecoration: dec.done ? "line-through" : "none", lineHeight: 1.4 }}>{dec.text}</div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "6px" }}>
-                        <span style={{ fontSize: "11px", fontWeight: 600, color: DEC_PRIORITY_COLORS[dec.priority] || "var(--accent)", textTransform: "uppercase", letterSpacing: "0.04em" }}>{dec.priority}</span>
-                        <span style={{ fontSize: "11px", color: "var(--muted)" }}>{dec.date}</span>
+                  <div key={dec.id} style={{ display: "flex", flexDirection: "column", gap: "10px", padding: "12px 14px", background: st.bg, border: "1px solid", borderColor: st.border, borderRadius: "var(--rs)", opacity: st.opacity, transition: "all 0.2s" }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: "13px", fontWeight: 500, color: "var(--text)", textDecoration: st.strike ? "line-through" : "none", lineHeight: 1.4 }}>{dec.text}</div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "5px" }}>
+                          <span style={{ fontSize: "11px", fontWeight: 600, color: DEC_PRIORITY_COLORS[dec.priority] || "var(--accent)", textTransform: "uppercase", letterSpacing: "0.04em" }}>{dec.priority}</span>
+                          <span style={{ fontSize: "11px", color: "var(--muted)" }}>{dec.date}</span>
+                        </div>
                       </div>
+                      <button onClick={function() { deleteDecision(dec.id); }} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", padding: "0", lineHeight: 1, flexShrink: 0 }} title="Eliminar">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "13px", height: "13px" }}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                      </button>
                     </div>
-                    <button onClick={function() { deleteDecision(dec.id); }} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", padding: "0", lineHeight: 1, flexShrink: 0 }} title="Eliminar">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "14px", height: "14px" }}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                    </button>
+                    <div style={{ display: "flex", gap: "6px" }}>
+                      {["Pendiente", "Completado", "Descartado"].map(function(s) {
+                        var active = dec.status === s;
+                        var colors = { "Pendiente": "var(--accent)", "Completado": "var(--green)", "Descartado": "var(--muted)" };
+                        return (
+                          <button key={s} onClick={function() { setDecisionStatus(dec.id, s); }} style={{ flex: 1, fontSize: "11px", fontWeight: active ? 700 : 500, padding: "4px 0", borderRadius: "4px", border: "1px solid", borderColor: active ? colors[s] : "#e5e5e5", background: active ? colors[s] : "transparent", color: active ? "#fff" : "var(--muted)", cursor: "pointer", transition: "all 0.15s", letterSpacing: "0.02em" }}>
+                            {s}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 );
               })}
