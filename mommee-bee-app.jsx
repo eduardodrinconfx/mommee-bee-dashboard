@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "./src/supabaseClient.js";
 
 var MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-var EXP_CATEGORIES = ["Advertising","Salaries","Services","Packaging","Transport","Rent","Taxes","Other"];
+var EXP_CATEGORIES = ["Advertising","Salaries","Services","Platform Fees","Subscriptions","Packaging","Transport","Rent","Taxes","Other"];
 var PLATFORMS = ["Instagram","WhatsApp","Website","Boutique","Marketplace"];
 var PLAT_COLORS = ["var(--accent)","var(--blue)","var(--green)","#ff9500","var(--purple)"];
 
@@ -18,6 +18,7 @@ export default function MommeeBeeApp(props) {
   var itemsState = useState([]);       var saleItems = itemsState[0];   var setSaleItems = itemsState[1];
   var importsState = useState([]);     var imports = importsState[0];   var setImports = importsState[1];
   var expensesState = useState([]);    var expenses = expensesState[0]; var setExpenses = expensesState[1];
+  var recurringState = useState([]);   var recurringExpenses = recurringState[0]; var setRecurringExpenses = recurringState[1];
   var productsState = useState([]);    var products = productsState[0]; var setProducts = productsState[1];
   var loadingState = useState(true);   var loading = loadingState[0];   var setLoading = loadingState[1];
   var showExpFormState = useState(false); var showExpenseForm = showExpFormState[0]; var setShowExpenseForm = showExpFormState[1];
@@ -25,16 +26,10 @@ export default function MommeeBeeApp(props) {
   var expForm = expFormState[0]; var setExpForm = expFormState[1];
   var refreshState = useState(0); var refreshKey = refreshState[0]; var setRefreshKey = refreshState[1];
 
-  var initDecisions = function() {
-    try { var s = localStorage.getItem("mb_decisions"); return s ? JSON.parse(s) : []; } catch(e) { return []; }
-  };
-  var decisionsState = useState(initDecisions); var decisions = decisionsState[0]; var setDecisions = decisionsState[1];
+  var decisionsState = useState([]); var decisions = decisionsState[0]; var setDecisions = decisionsState[1];
   var showDecFormState = useState(false); var showDecForm = showDecFormState[0]; var setShowDecForm = showDecFormState[1];
   var decFormState = useState({ text: "", priority: "Media" }); var decForm = decFormState[0]; var setDecForm = decFormState[1];
-
-  useEffect(function() {
-    try { localStorage.setItem("mb_decisions", JSON.stringify(decisions)); } catch(e) {}
-  }, [decisions]);
+  var taskInputState = useState({ decId: null, text: "" }); var taskInput = taskInputState[0]; var setTaskInput = taskInputState[1];
 
   useEffect(function() { loadData(); }, [refreshKey]);
 
@@ -49,14 +44,44 @@ export default function MommeeBeeApp(props) {
       supabase.from("expenses").select("*").gte("date", start).order("date", { ascending: false }),
       supabase.from("clients").select("*").order("name"),
       supabase.from("products").select("*"),
+      supabase.from("recurring_expenses").select("*").eq("active", true).order("category"),
+      supabase.from("decisions").select("*").order("created_at", { ascending: false }),
     ]).then(function(results) {
       if (results[0].data) setSales(results[0].data);
       if (results[1].data) setSaleItems(results[1].data);
       if (results[2].data) setImports(results[2].data);
-      if (results[3].data) setExpenses(results[3].data.map(function(e) { return { id: e.id, date: e.date, category: e.category, desc: e.description || "", amount: e.amount_usd || 0 }; }));
       if (results[4].data) setClients(results[4].data);
       if (results[5].data) setProducts(results[5].data);
-      setLoading(false);
+      if (results[7].data) setDecisions(results[7].data.map(function(d) { return { id: d.id, text: d.text, priority: d.priority, status: d.status, date: d.date, tasks: d.tasks || [] }; }));
+
+      var allExpenses = results[3].data || [];
+      var recurring = results[6].data || [];
+      if (recurring.length > 0) setRecurringExpenses(recurring.map(function(e) { return { id: e.id, category: e.category, desc: e.description || "", amount: parseFloat(e.amount_usd) || 0 }; }));
+
+      var now = new Date();
+      var monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
+      var monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
+      var monthExp   = allExpenses.filter(function(e) { return e.date >= monthStart && e.date <= monthEnd; });
+
+      var toInsert = recurring.filter(function(r) {
+        return !monthExp.some(function(e) {
+          return e.category === r.category && (e.description || "") === (r.description || "");
+        });
+      });
+
+      function applyExpenses(list) {
+        setExpenses(list.map(function(e) { return { id: e.id, date: e.date, category: e.category, desc: e.description || "", amount: parseFloat(e.amount_usd) || 0 }; }));
+        setLoading(false);
+      }
+
+      if (toInsert.length > 0) {
+        var rows = toInsert.map(function(r) { return { date: monthStart, category: r.category, description: r.description, amount_usd: r.amount_usd }; });
+        supabase.from("expenses").insert(rows).select().then(function(res) {
+          applyExpenses(res.data ? allExpenses.concat(res.data) : allExpenses);
+        });
+      } else {
+        applyExpenses(allExpenses);
+      }
     });
   }
 
@@ -65,18 +90,56 @@ export default function MommeeBeeApp(props) {
 
   var addDecision = function() {
     if (!decForm.text.trim()) return;
-    var newDec = { id: Date.now(), text: decForm.text.trim(), priority: decForm.priority, status: "Pendiente", date: new Date().toISOString().split("T")[0] };
-    setDecisions(function(ds) { return [newDec].concat(ds); });
+    var row = { text: decForm.text.trim(), priority: decForm.priority, status: "Pendiente", date: new Date().toISOString().split("T")[0], tasks: [] };
+    supabase.from("decisions").insert(row).select().single().then(function(res) {
+      if (res.data) setDecisions(function(ds) { return [{ id: res.data.id, text: res.data.text, priority: res.data.priority, status: res.data.status, date: res.data.date, tasks: res.data.tasks || [] }].concat(ds); });
+    });
     setDecForm({ text: "", priority: "Media" });
     setShowDecForm(false);
   };
 
   var setDecisionStatus = function(id, status) {
+    supabase.from("decisions").update({ status: status }).eq("id", id).then(function() {});
     setDecisions(function(ds) { return ds.map(function(d) { if (d.id !== id) return d; var n = {}; for (var x in d) n[x] = d[x]; n.status = status; return n; }); });
   };
 
   var deleteDecision = function(id) {
+    supabase.from("decisions").delete().eq("id", id).then(function() {});
     setDecisions(function(ds) { return ds.filter(function(d) { return d.id !== id; }); });
+  };
+
+  var updateDecTasks = function(decId, newTasks) {
+    supabase.from("decisions").update({ tasks: newTasks }).eq("id", decId).then(function() {});
+    setDecisions(function(ds) { return ds.map(function(d) { if (d.id !== decId) return d; var n = {}; for (var x in d) n[x] = d[x]; n.tasks = newTasks; return n; }); });
+  };
+
+  var addTask = function(decId) {
+    if (!taskInput.text.trim()) return;
+    var dec = decisions.filter(function(d) { return d.id === decId; })[0];
+    if (!dec) return;
+    var newTask = { id: Date.now(), text: taskInput.text.trim(), status: "Pendiente" };
+    updateDecTasks(decId, (dec.tasks || []).concat([newTask]));
+    setTaskInput({ decId: decId, text: "" });
+  };
+
+  var setTaskStatus = function(decId, taskId, status) {
+    var dec = decisions.filter(function(d) { return d.id === decId; })[0];
+    if (!dec) return;
+    var newTasks = (dec.tasks || []).map(function(t) { if (t.id !== taskId) return t; var nt = {}; for (var x in t) nt[x] = t[x]; nt.status = status; return nt; });
+    updateDecTasks(decId, newTasks);
+  };
+
+  var deleteTask = function(decId, taskId) {
+    var dec = decisions.filter(function(d) { return d.id === decId; })[0];
+    if (!dec) return;
+    updateDecTasks(decId, (dec.tasks || []).filter(function(t) { return t.id !== taskId; }));
+  };
+
+  var getDecProgress = function(dec) {
+    var tasks = dec.tasks || [];
+    if (tasks.length === 0) return -1;
+    var done = tasks.filter(function(t) { return t.status === "Completado"; }).length;
+    return Math.round((done / tasks.length) * 100);
   };
 
   var DEC_PRIORITY_COLORS = { "Alta": "var(--red)", "Media": "var(--accent)", "Baja": "var(--green)" };
@@ -141,6 +204,10 @@ export default function MommeeBeeApp(props) {
 
   // OPEX
   var monthExpenses = expenses.filter(function(e) { return new Date(e.date).getMonth() === cm; });
+  var recurringKeys = recurringExpenses.map(function(r) { return r.category + "|" + r.desc; });
+  var fixedExpenses = monthExpenses.filter(function(e) { return recurringKeys.indexOf(e.category + "|" + e.desc) >= 0; });
+  var variableExpenses = monthExpenses.filter(function(e) { return recurringKeys.indexOf(e.category + "|" + e.desc) < 0; });
+  var recurringTotal = fixedExpenses.reduce(function(s, e) { return s + (e.amount || 0); }, 0);
   var totalOpex = monthExpenses.reduce(function(s, e) { return s + (e.amount || 0); }, 0);
 
   // P&L
@@ -566,22 +633,45 @@ export default function MommeeBeeApp(props) {
                 </div>
               )}
 
-              <div style={{ maxHeight: "300px", overflowY: "auto" }}>
-                {monthExpenses.map(function(e, i) {
-                  return (
-                    <div key={e.id} className="exp-row">
-                      <span className="bdg bdg-or">{e.category}</span>
-                      <div style={{ flex: 1, fontSize: "12px", color: "var(--muted)" }}>{e.desc}</div>
-                      <span className="mono" style={{ color: "var(--red)" }}>{"-$" + e.amount}</span>
-                    </div>
-                  );
-                })}
+              <div style={{ maxHeight: "320px", overflowY: "auto" }}>
+                {fixedExpenses.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: "10px", fontWeight: 600, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em", padding: "4px 0 6px" }}>Gastos Fijos Mensuales</div>
+                    {fixedExpenses.map(function(e) {
+                      return (
+                        <div key={"r" + e.id} className="exp-row">
+                          <span className="bdg" style={{ background: "#eef2ff", color: "#4f46e5", border: "1px solid #c7d2fe", fontSize: "10px" }}>{e.category}</span>
+                          <div style={{ flex: 1, fontSize: "12px", color: "var(--muted)" }}>{e.desc}</div>
+                          <span style={{ fontSize: "9px", background: "#f0fdf4", color: "#16a34a", border: "1px solid #bbf7d0", borderRadius: "4px", padding: "1px 6px", marginRight: "6px", fontWeight: 600 }}>Fijo</span>
+                          <span className="mono" style={{ color: "var(--red)" }}>{"-$" + e.amount.toFixed(2)}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                {variableExpenses.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: "10px", fontWeight: 600, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em", padding: "10px 0 6px" }}>Gastos Variables</div>
+                    {variableExpenses.map(function(e) {
+                      return (
+                        <div key={e.id} className="exp-row">
+                          <span className="bdg bdg-or">{e.category}</span>
+                          <div style={{ flex: 1, fontSize: "12px", color: "var(--muted)" }}>{e.desc}</div>
+                          <span className="mono" style={{ color: "var(--red)" }}>{"-$" + e.amount}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                {monthExpenses.length === 0 && (
+                  <div style={{ textAlign: "center", color: "var(--muted)", fontSize: "13px", padding: "24px 0" }}>No hay gastos este mes</div>
+                )}
               </div>
 
               <div className="summary-bar" style={{ marginTop: "12px" }}>
-                <div className="summary-item"><div className="summary-label">Total Expenses</div><div className="summary-value" style={{ color: "var(--red)" }}>{"-$" + totalOpex.toLocaleString()}</div></div>
+                <div className="summary-item"><div className="summary-label">Total Expenses</div><div className="summary-value" style={{ color: "var(--red)" }}>{"-$" + totalOpex.toFixed(2)}</div></div>
                 <div className="summary-spacer" />
-                <div className="summary-item"><div className="summary-label">Categories</div><div className="summary-value">{new Set(monthExpenses.map(function(e) { return e.category; })).size}</div></div>
+                <div className="summary-item"><div className="summary-label">Fijos</div><div className="summary-value" style={{ color: "var(--red)" }}>{"-$" + recurringTotal.toFixed(2)}</div></div>
               </div>
             </div>
           </div>
@@ -632,8 +722,14 @@ export default function MommeeBeeApp(props) {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "10px" }}>
               {decisions.map(function(dec) {
                 var st = DEC_STATUS_STYLES[dec.status] || DEC_STATUS_STYLES["Pendiente"];
+                var tasks = dec.tasks || [];
+                var progress = getDecProgress(dec);
+                var showTaskInput = taskInput.decId === dec.id;
+                var taskColors = { "Pendiente": "var(--accent)", "Completado": "var(--green)", "Descartado": "var(--muted)" };
                 return (
                   <div key={dec.id} style={{ display: "flex", flexDirection: "column", gap: "10px", padding: "12px 14px", background: st.bg, border: "1px solid", borderColor: st.border, borderRadius: "var(--rs)", opacity: st.opacity, transition: "all 0.2s" }}>
+
+                    {/* Header */}
                     <div style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: "13px", fontWeight: 500, color: "var(--text)", textDecoration: st.strike ? "line-through" : "none", lineHeight: 1.4 }}>{dec.text}</div>
@@ -646,6 +742,69 @@ export default function MommeeBeeApp(props) {
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "13px", height: "13px" }}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                       </button>
                     </div>
+
+                    {/* Progress bar */}
+                    {progress >= 0 && (
+                      <div>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+                          <span style={{ fontSize: "10px", color: "var(--muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Progreso</span>
+                          <span style={{ fontSize: "10px", color: progress === 100 ? "var(--green)" : "var(--accent)", fontWeight: 700 }}>{progress}%</span>
+                        </div>
+                        <div style={{ height: "4px", background: "#e5e5e5", borderRadius: "99px", overflow: "hidden" }}>
+                          <div style={{ height: "100%", width: progress + "%", background: progress === 100 ? "var(--green)" : "var(--accent)", borderRadius: "99px", transition: "width 0.3s ease" }} />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Mini tasks */}
+                    {tasks.length > 0 && (
+                      <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                        {tasks.map(function(t) {
+                          return (
+                            <div key={t.id} style={{ display: "flex", alignItems: "center", gap: "6px", padding: "5px 8px", background: "rgba(0,0,0,0.03)", borderRadius: "6px" }}>
+                              <div style={{ flex: 1, fontSize: "12px", color: t.status === "Completado" ? "var(--muted)" : "var(--text)", textDecoration: t.status === "Completado" ? "line-through" : "none" }}>{t.text}</div>
+                              <div style={{ display: "flex", gap: "3px" }}>
+                                {["Pendiente", "Completado", "Descartado"].map(function(s) {
+                                  var active = t.status === s;
+                                  var short = { "Pendiente": "P", "Completado": "✓", "Descartado": "✕" };
+                                  return (
+                                    <button key={s} title={s} onClick={function() { setTaskStatus(dec.id, t.id, s); }} style={{ width: "18px", height: "18px", fontSize: "10px", borderRadius: "4px", border: "1px solid", borderColor: active ? taskColors[s] : "#e5e5e5", background: active ? taskColors[s] : "transparent", color: active ? "#fff" : "var(--muted)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, transition: "all 0.15s", flexShrink: 0 }}>
+                                      {short[s]}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                              <button onClick={function() { deleteTask(dec.id, t.id); }} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", padding: "0", lineHeight: 1, flexShrink: 0 }}>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "11px", height: "11px" }}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Add task input */}
+                    {showTaskInput ? (
+                      <div style={{ display: "flex", gap: "6px" }}>
+                        <input
+                          autoFocus
+                          className="form-input"
+                          style={{ flex: 1, fontSize: "12px", padding: "4px 8px" }}
+                          placeholder="Nueva tarea..."
+                          value={taskInput.text}
+                          onChange={function(e) { setTaskInput({ decId: dec.id, text: e.target.value }); }}
+                          onKeyDown={function(e) { if (e.key === "Enter") addTask(dec.id); if (e.key === "Escape") setTaskInput({ decId: null, text: "" }); }}
+                        />
+                        <button className="btn btn-primary" onClick={function() { addTask(dec.id); }} style={{ padding: "4px 10px", fontSize: "12px" }}>+</button>
+                        <button className="btn" onClick={function() { setTaskInput({ decId: null, text: "" }); }} style={{ padding: "4px 10px", fontSize: "12px" }}>✕</button>
+                      </div>
+                    ) : (
+                      <button onClick={function() { setTaskInput({ decId: dec.id, text: "" }); }} style={{ background: "none", border: "1px dashed #d1d5db", borderRadius: "6px", padding: "4px 8px", fontSize: "11px", color: "var(--muted)", cursor: "pointer", textAlign: "left", width: "100%" }}>
+                        + agregar tarea
+                      </button>
+                    )}
+
+                    {/* Status buttons */}
                     <div style={{ display: "flex", gap: "6px" }}>
                       {["Pendiente", "Completado", "Descartado"].map(function(s) {
                         var active = dec.status === s;
@@ -657,6 +816,7 @@ export default function MommeeBeeApp(props) {
                         );
                       })}
                     </div>
+
                   </div>
                 );
               })}
