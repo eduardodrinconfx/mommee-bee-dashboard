@@ -31,6 +31,7 @@ export default function MommeeBeeApp(props) {
   var decFormState = useState({ text: "", priority: "Media" }); var decForm = decFormState[0]; var setDecForm = decFormState[1];
   var taskInputState = useState({ decId: null, text: "", dueDate: "" }); var taskInput = taskInputState[0]; var setTaskInput = taskInputState[1];
   var editingDecState = useState({ id: null, text: "" }); var editingDec = editingDecState[0]; var setEditingDec = editingDecState[1];
+  var editingTaskState = useState({ decId: null, taskId: null, text: "", dueDate: "" }); var editingTask = editingTaskState[0]; var setEditingTask = editingTaskState[1];
 
   useEffect(function() { loadData(); }, [refreshKey]);
 
@@ -114,6 +115,15 @@ export default function MommeeBeeApp(props) {
     supabase.from("decisions").update({ "text": text.trim() }).eq("id", id).then(function() {});
     setDecisions(function(ds) { return ds.map(function(d) { if (d.id !== id) return d; var n = {}; for (var x in d) n[x] = d[x]; n.text = text.trim(); return n; }); });
     setEditingDec({ id: null, text: "" });
+  };
+
+  var updateTaskContent = function(decId, taskId, newText, newDueDate) {
+    if (!newText.trim()) return;
+    var dec = decisions.filter(function(d) { return d.id === decId; })[0];
+    if (!dec) return;
+    var newTasks = (dec.tasks || []).map(function(t) { if (t.id !== taskId) return t; var nt = {}; for (var x in t) nt[x] = t[x]; nt.text = newText.trim(); nt.dueDate = newDueDate || ""; return nt; });
+    updateDecTasks(decId, newTasks);
+    setEditingTask({ decId: null, taskId: null, text: "", dueDate: "" });
   };
 
   var updateDecTasks = function(decId, newTasks) {
@@ -781,29 +791,48 @@ export default function MommeeBeeApp(props) {
                       <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                         {tasks.map(function(t) {
                           return (
-                            <div key={t.id} style={{ display: "flex", alignItems: "center", gap: "6px", padding: "5px 8px", background: "rgba(0,0,0,0.03)", borderRadius: "6px" }}>
-                              <div style={{ flex: 1 }}>
-                                <div style={{ fontSize: "12px", color: t.status === "Completado" ? "var(--muted)" : "var(--text)", textDecoration: t.status === "Completado" ? "line-through" : "none" }}>{t.text}</div>
-                                {t.dueDate && (
-                                  <div style={{ fontSize: "10px", marginTop: "2px", color: t.status !== "Completado" && t.dueDate < new Date().toISOString().split("T")[0] ? "#ef4444" : "var(--muted)", fontWeight: t.status !== "Completado" && t.dueDate < new Date().toISOString().split("T")[0] ? 600 : 400 }}>
-                                    Vence: {t.dueDate}
+                            <div key={t.id} style={{ padding: "5px 8px", background: "rgba(0,0,0,0.03)", borderRadius: "6px" }}>
+                              {editingTask.decId === dec.id && editingTask.taskId === t.id ? (
+                                <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+                                  <input
+                                    autoFocus
+                                    className="form-input"
+                                    style={{ fontSize: "12px", padding: "3px 7px", width: "100%" }}
+                                    value={editingTask.text}
+                                    onChange={function(e) { setEditingTask({ decId: dec.id, taskId: t.id, text: e.target.value, dueDate: editingTask.dueDate }); }}
+                                    onKeyDown={function(e) { if (e.key === "Enter") updateTaskContent(dec.id, t.id, editingTask.text, editingTask.dueDate); if (e.key === "Escape") setEditingTask({ decId: null, taskId: null, text: "", dueDate: "" }); }}
+                                  />
+                                  <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                                    <span style={{ fontSize: "10px", color: "var(--muted)", whiteSpace: "nowrap" }}>Vence:</span>
+                                    <input type="date" className="form-input" style={{ fontSize: "11px", padding: "2px 5px", flex: 1 }} value={editingTask.dueDate} onChange={function(e) { setEditingTask({ decId: dec.id, taskId: t.id, text: editingTask.text, dueDate: e.target.value }); }} />
+                                    <button className="btn btn-primary" onClick={function() { updateTaskContent(dec.id, t.id, editingTask.text, editingTask.dueDate); }} style={{ padding: "2px 8px", fontSize: "11px" }}>Guardar</button>
+                                    <button className="btn" onClick={function() { setEditingTask({ decId: null, taskId: null, text: "", dueDate: "" }); }} style={{ padding: "2px 7px", fontSize: "11px" }}>✕</button>
                                   </div>
-                                )}
-                              </div>
-                              <div style={{ display: "flex", gap: "3px" }}>
-                                {["Pendiente", "Completado", "Descartado"].map(function(s) {
-                                  var active = t.status === s;
-                                  var short = { "Pendiente": "P", "Completado": "✓", "Descartado": "✕" };
-                                  return (
-                                    <button key={s} title={s} onClick={function() { setTaskStatus(dec.id, t.id, s); }} style={{ width: "18px", height: "18px", fontSize: "10px", borderRadius: "4px", border: "1px solid", borderColor: active ? taskColors[s] : "#e5e5e5", background: active ? taskColors[s] : "transparent", color: active ? "#fff" : "var(--muted)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, transition: "all 0.15s", flexShrink: 0 }}>
-                                      {short[s]}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                              <button onClick={function() { deleteTask(dec.id, t.id); }} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", padding: "0", lineHeight: 1, flexShrink: 0 }}>
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "11px", height: "11px" }}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                              </button>
+                                </div>
+                              ) : (
+                                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                                  <div style={{ flex: 1, cursor: "pointer" }} onClick={function() { setEditingTask({ decId: dec.id, taskId: t.id, text: t.text, dueDate: t.dueDate || "" }); }}>
+                                    <div style={{ fontSize: "12px", color: t.status === "Completado" ? "var(--muted)" : "var(--text)", textDecoration: t.status === "Completado" ? "line-through" : "none" }}>{t.text}</div>
+                                    <div style={{ fontSize: "10px", marginTop: "2px", color: t.dueDate && t.status !== "Completado" && t.dueDate < new Date().toISOString().split("T")[0] ? "#ef4444" : "var(--muted)", fontWeight: t.dueDate && t.status !== "Completado" && t.dueDate < new Date().toISOString().split("T")[0] ? 600 : 400 }}>
+                                      {t.dueDate ? ("Vence: " + t.dueDate) : "+ agregar fecha"}
+                                    </div>
+                                  </div>
+                                  <div style={{ display: "flex", gap: "3px" }}>
+                                    {["Pendiente", "Completado", "Descartado"].map(function(s) {
+                                      var active = t.status === s;
+                                      var short = { "Pendiente": "P", "Completado": "✓", "Descartado": "✕" };
+                                      return (
+                                        <button key={s} title={s} onClick={function() { setTaskStatus(dec.id, t.id, s); }} style={{ width: "18px", height: "18px", fontSize: "10px", borderRadius: "4px", border: "1px solid", borderColor: active ? taskColors[s] : "#e5e5e5", background: active ? taskColors[s] : "transparent", color: active ? "#fff" : "var(--muted)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, transition: "all 0.15s", flexShrink: 0 }}>
+                                          {short[s]}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                  <button onClick={function() { deleteTask(dec.id, t.id); }} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", padding: "0", lineHeight: 1, flexShrink: 0 }}>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "11px", height: "11px" }}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                  </button>
+                                </div>
+                              )}
                             </div>
                           );
                         })}
