@@ -78,7 +78,7 @@ export default function MommeeBeeApp(props) {
       }
 
       if (toInsert.length > 0) {
-        var rows = toInsert.map(function(r) { return { date: monthStart, category: r.category, description: r.description, amount_usd: r.amount_usd }; });
+        var rows = toInsert.map(function(r) { var day = r.day_of_month || 1; var d = new Date(now.getFullYear(), now.getMonth(), day); var dateStr = d.toISOString().split("T")[0]; return { date: dateStr, category: r.category, description: r.description, amount_usd: r.amount_usd }; });
         supabase.from("expenses").insert(rows).select().then(function(res) {
           applyExpenses(res.data ? allExpenses.concat(res.data) : allExpenses);
         });
