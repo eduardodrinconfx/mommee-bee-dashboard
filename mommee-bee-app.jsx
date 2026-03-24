@@ -29,7 +29,8 @@ export default function MommeeBeeApp(props) {
   var decisionsState = useState([]); var decisions = decisionsState[0]; var setDecisions = decisionsState[1];
   var showDecFormState = useState(false); var showDecForm = showDecFormState[0]; var setShowDecForm = showDecFormState[1];
   var decFormState = useState({ text: "", priority: "Media" }); var decForm = decFormState[0]; var setDecForm = decFormState[1];
-  var taskInputState = useState({ decId: null, text: "" }); var taskInput = taskInputState[0]; var setTaskInput = taskInputState[1];
+  var taskInputState = useState({ decId: null, text: "", dueDate: "" }); var taskInput = taskInputState[0]; var setTaskInput = taskInputState[1];
+  var editingDecState = useState({ id: null, text: "" }); var editingDec = editingDecState[0]; var setEditingDec = editingDecState[1];
 
   useEffect(function() { loadData(); }, [refreshKey]);
 
@@ -108,6 +109,13 @@ export default function MommeeBeeApp(props) {
     setDecisions(function(ds) { return ds.filter(function(d) { return d.id !== id; }); });
   };
 
+  var updateDecisionText = function(id, text) {
+    if (!text.trim()) return;
+    supabase.from("decisions").update({ "text": text.trim() }).eq("id", id).then(function() {});
+    setDecisions(function(ds) { return ds.map(function(d) { if (d.id !== id) return d; var n = {}; for (var x in d) n[x] = d[x]; n.text = text.trim(); return n; }); });
+    setEditingDec({ id: null, text: "" });
+  };
+
   var updateDecTasks = function(decId, newTasks) {
     supabase.from("decisions").update({ tasks: newTasks }).eq("id", decId).then(function() {});
     setDecisions(function(ds) { return ds.map(function(d) { if (d.id !== decId) return d; var n = {}; for (var x in d) n[x] = d[x]; n.tasks = newTasks; return n; }); });
@@ -117,9 +125,9 @@ export default function MommeeBeeApp(props) {
     if (!taskInput.text.trim()) return;
     var dec = decisions.filter(function(d) { return d.id === decId; })[0];
     if (!dec) return;
-    var newTask = { id: Date.now(), text: taskInput.text.trim(), status: "Pendiente" };
+    var newTask = { id: Date.now(), text: taskInput.text.trim(), status: "Pendiente", dueDate: taskInput.dueDate || "" };
     updateDecTasks(decId, (dec.tasks || []).concat([newTask]));
-    setTaskInput({ decId: decId, text: "" });
+    setTaskInput({ decId: decId, text: "", dueDate: "" });
   };
 
   var setTaskStatus = function(decId, taskId, status) {
@@ -732,7 +740,19 @@ export default function MommeeBeeApp(props) {
                     {/* Header */}
                     <div style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: "13px", fontWeight: 500, color: "var(--text)", textDecoration: st.strike ? "line-through" : "none", lineHeight: 1.4 }}>{dec.text}</div>
+                        {editingDec.id === dec.id ? (
+                          <input
+                            autoFocus
+                            className="form-input"
+                            style={{ fontSize: "13px", fontWeight: 500, padding: "2px 6px", width: "100%", lineHeight: 1.4 }}
+                            value={editingDec.text}
+                            onChange={function(e) { setEditingDec({ id: dec.id, text: e.target.value }); }}
+                            onBlur={function() { updateDecisionText(dec.id, editingDec.text); }}
+                            onKeyDown={function(e) { if (e.key === "Enter") updateDecisionText(dec.id, editingDec.text); if (e.key === "Escape") setEditingDec({ id: null, text: "" }); }}
+                          />
+                        ) : (
+                          <div onClick={function() { setEditingDec({ id: dec.id, text: dec.text }); }} title="Click para editar" style={{ fontSize: "13px", fontWeight: 500, color: "var(--text)", textDecoration: st.strike ? "line-through" : "none", lineHeight: 1.4, cursor: "text", borderRadius: "4px", padding: "2px 4px", margin: "-2px -4px" }}>{dec.text}</div>
+                        )}
                         <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "5px" }}>
                           <span style={{ fontSize: "11px", fontWeight: 600, color: DEC_PRIORITY_COLORS[dec.priority] || "var(--accent)", textTransform: "uppercase", letterSpacing: "0.04em" }}>{dec.priority}</span>
                           <span style={{ fontSize: "11px", color: "var(--muted)" }}>{dec.date}</span>
@@ -762,7 +782,14 @@ export default function MommeeBeeApp(props) {
                         {tasks.map(function(t) {
                           return (
                             <div key={t.id} style={{ display: "flex", alignItems: "center", gap: "6px", padding: "5px 8px", background: "rgba(0,0,0,0.03)", borderRadius: "6px" }}>
-                              <div style={{ flex: 1, fontSize: "12px", color: t.status === "Completado" ? "var(--muted)" : "var(--text)", textDecoration: t.status === "Completado" ? "line-through" : "none" }}>{t.text}</div>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ fontSize: "12px", color: t.status === "Completado" ? "var(--muted)" : "var(--text)", textDecoration: t.status === "Completado" ? "line-through" : "none" }}>{t.text}</div>
+                                {t.dueDate && (
+                                  <div style={{ fontSize: "10px", marginTop: "2px", color: t.status !== "Completado" && t.dueDate < new Date().toISOString().split("T")[0] ? "#ef4444" : "var(--muted)", fontWeight: t.status !== "Completado" && t.dueDate < new Date().toISOString().split("T")[0] ? 600 : 400 }}>
+                                    Vence: {t.dueDate}
+                                  </div>
+                                )}
+                              </div>
                               <div style={{ display: "flex", gap: "3px" }}>
                                 {["Pendiente", "Completado", "Descartado"].map(function(s) {
                                   var active = t.status === s;
@@ -785,18 +812,30 @@ export default function MommeeBeeApp(props) {
 
                     {/* Add task input */}
                     {showTaskInput ? (
-                      <div style={{ display: "flex", gap: "6px" }}>
-                        <input
-                          autoFocus
-                          className="form-input"
-                          style={{ flex: 1, fontSize: "12px", padding: "4px 8px" }}
-                          placeholder="Nueva tarea..."
-                          value={taskInput.text}
-                          onChange={function(e) { setTaskInput({ decId: dec.id, text: e.target.value }); }}
-                          onKeyDown={function(e) { if (e.key === "Enter") addTask(dec.id); if (e.key === "Escape") setTaskInput({ decId: null, text: "" }); }}
-                        />
-                        <button className="btn btn-primary" onClick={function() { addTask(dec.id); }} style={{ padding: "4px 10px", fontSize: "12px" }}>+</button>
-                        <button className="btn" onClick={function() { setTaskInput({ decId: null, text: "" }); }} style={{ padding: "4px 10px", fontSize: "12px" }}>✕</button>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+                        <div style={{ display: "flex", gap: "6px" }}>
+                          <input
+                            autoFocus
+                            className="form-input"
+                            style={{ flex: 1, fontSize: "12px", padding: "4px 8px" }}
+                            placeholder="Nueva tarea..."
+                            value={taskInput.text}
+                            onChange={function(e) { setTaskInput({ decId: dec.id, text: e.target.value, dueDate: taskInput.dueDate }); }}
+                            onKeyDown={function(e) { if (e.key === "Enter") addTask(dec.id); if (e.key === "Escape") setTaskInput({ decId: null, text: "", dueDate: "" }); }}
+                          />
+                          <button className="btn btn-primary" onClick={function() { addTask(dec.id); }} style={{ padding: "4px 10px", fontSize: "12px" }}>+</button>
+                          <button className="btn" onClick={function() { setTaskInput({ decId: null, text: "", dueDate: "" }); }} style={{ padding: "4px 10px", fontSize: "12px" }}>✕</button>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                          <span style={{ fontSize: "11px", color: "var(--muted)", whiteSpace: "nowrap" }}>Vence:</span>
+                          <input
+                            type="date"
+                            className="form-input"
+                            style={{ fontSize: "11px", padding: "3px 6px", flex: 1 }}
+                            value={taskInput.dueDate}
+                            onChange={function(e) { setTaskInput({ decId: dec.id, text: taskInput.text, dueDate: e.target.value }); }}
+                          />
+                        </div>
                       </div>
                     ) : (
                       <button onClick={function() { setTaskInput({ decId: dec.id, text: "" }); }} style={{ background: "none", border: "1px dashed #d1d5db", borderRadius: "6px", padding: "4px 8px", fontSize: "11px", color: "var(--muted)", cursor: "pointer", textAlign: "left", width: "100%" }}>
