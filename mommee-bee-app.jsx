@@ -32,6 +32,7 @@ export default function MommeeBeeApp(props) {
   var taskInputState = useState({ decId: null, text: "", dueDate: "" }); var taskInput = taskInputState[0]; var setTaskInput = taskInputState[1];
   var editingDecState = useState({ id: null, text: "" }); var editingDec = editingDecState[0]; var setEditingDec = editingDecState[1];
   var editingTaskState = useState({ decId: null, taskId: null, text: "", dueDate: "" }); var editingTask = editingTaskState[0]; var setEditingTask = editingTaskState[1];
+  var dragIdxState = useState(null); var dragIdx = dragIdxState[0]; var setDragIdx = dragIdxState[1];
 
   useEffect(function() { loadData(); }, [refreshKey]);
 
@@ -47,7 +48,7 @@ export default function MommeeBeeApp(props) {
       supabase.from("clients").select("*").order("name"),
       supabase.from("products").select("*"),
       supabase.from("recurring_expenses").select("*").eq("active", true).order("category"),
-      supabase.from("decisions").select("*").order("created_at", { ascending: false }),
+      supabase.from("decisions").select("*").order("position", { ascending: true }),
     ]).then(function(results) {
       if (results[0].data) setSales(results[0].data);
       if (results[1].data) setSaleItems(results[1].data);
@@ -115,6 +116,17 @@ export default function MommeeBeeApp(props) {
     supabase.from("decisions").update({ "text": text.trim() }).eq("id", id).then(function() {});
     setDecisions(function(ds) { return ds.map(function(d) { if (d.id !== id) return d; var n = {}; for (var x in d) n[x] = d[x]; n.text = text.trim(); return n; }); });
     setEditingDec({ id: null, text: "" });
+  };
+
+  var reorderDecisions = function(fromIdx, toIdx) {
+    if (fromIdx === toIdx) return;
+    var arr = decisions.slice();
+    var moved = arr.splice(fromIdx, 1)[0];
+    arr.splice(toIdx, 0, moved);
+    setDecisions(arr);
+    arr.forEach(function(d, i) {
+      supabase.from("decisions").update({ position: i }).eq("id", d.id).then(function() {});
+    });
   };
 
   var updateTaskContent = function(decId, taskId, newText, newDueDate) {
@@ -738,14 +750,14 @@ export default function MommeeBeeApp(props) {
             )}
 
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "10px" }}>
-              {decisions.map(function(dec) {
+              {decisions.map(function(dec, decIdx) {
                 var st = DEC_STATUS_STYLES[dec.status] || DEC_STATUS_STYLES["Pendiente"];
                 var tasks = dec.tasks || [];
                 var progress = getDecProgress(dec);
                 var showTaskInput = taskInput.decId === dec.id;
                 var taskColors = { "Pendiente": "var(--accent)", "Completado": "var(--green)", "Descartado": "var(--muted)" };
                 return (
-                  <div key={dec.id} style={{ display: "flex", flexDirection: "column", gap: "10px", padding: "12px 14px", background: st.bg, border: "1px solid", borderColor: st.border, borderRadius: "var(--rs)", opacity: st.opacity, transition: "all 0.2s" }}>
+                  <div key={dec.id} draggable={true} onDragStart={function() { setDragIdx(decIdx); }} onDragOver={function(e) { e.preventDefault(); }} onDrop={function() { reorderDecisions(dragIdx, decIdx); setDragIdx(null); }} style={{ display: "flex", flexDirection: "column", gap: "10px", padding: "12px 14px", background: st.bg, border: "1px solid", borderColor: dragIdx === decIdx ? "var(--accent)" : st.border, borderRadius: "var(--rs)", opacity: dragIdx !== null && dragIdx !== decIdx ? 0.6 : st.opacity, transition: "all 0.2s", cursor: "grab" }}>
 
                     {/* Header */}
                     <div style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
