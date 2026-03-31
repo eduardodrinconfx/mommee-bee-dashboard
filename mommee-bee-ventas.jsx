@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./src/supabaseClient.js";
 
-var PLATFORMS = ["Instagram", "WhatsApp", "Website", "Boutique", "Marketplace"];
+var PLATFORMS = ["Instagram", "WhatsApp", "Website", "Boutique", "Marketplace", "Amazon", "Shopify", "P2P"];
 var PAYMENT_METHODS = ["Mobile Payment", "Transfer", "Zelle", "Cash USD", "Cash Bs"];
 var PAYMENT_STATUSES = ["Paid", "Pending", "Partial"];
 var REGIONS = [
