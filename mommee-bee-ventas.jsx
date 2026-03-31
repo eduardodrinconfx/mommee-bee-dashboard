@@ -26,6 +26,8 @@ var INITIAL_FORM = {
   paymentStatus: "Paid",
   saleType: "Retail",
   region: "Florida",
+  fee: "",
+  shipping: "",
   notes: "",
 };
 
@@ -158,6 +160,8 @@ export default function MommeeVentas(props) {
         sale_type: form.saleType,
         vz_state: form.region,
         notes: form.notes,
+        fee: parseFloat(form.fee) || 0,
+        shipping: parseFloat(form.shipping) || 0,
         total_usd: cartTotal,
       };
       supabase.from("sales").insert(saleRow).select().single().then(function(res) {
@@ -425,6 +429,17 @@ export default function MommeeVentas(props) {
                     )}
                   </div>
 
+                  <div className="form-row" style={{ gridTemplateColumns: "1fr 1fr" }}>
+                    <div className="form-group">
+                      <label className="form-label">Fee ($)</label>
+                      <input className="form-input" type="number" min="0" step="0.01" placeholder="0.00" value={form.fee} onChange={function(e) { setForm(function(f) { var n = {}; for (var k in f) n[k] = f[k]; n.fee = e.target.value; return n; }); }} />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Shipping ($)</label>
+                      <input className="form-input" type="number" min="0" step="0.01" placeholder="0.00" value={form.shipping} onChange={function(e) { setForm(function(f) { var n = {}; for (var k in f) n[k] = f[k]; n.shipping = e.target.value; return n; }); }} />
+                    </div>
+                  </div>
+
                   <div className="form-group">
                     <label className="form-label">Notes (optional)</label>
                     <input className="form-input" type="text" placeholder="Additional notes..." value={form.notes} onChange={function(e) { setForm(function(f) { var n = {}; for (var k in f) n[k] = f[k]; n.notes = e.target.value; return n; }); }} style={{ width: "100%" }} />
@@ -491,19 +506,28 @@ export default function MommeeVentas(props) {
                   })}
 
                   {cart.length > 0 && (
-                    <div className="summary-bar" style={{ marginTop: "14px" }}>
-                      <div className="summary-item">
-                        <div className="summary-label">Items</div>
-                        <div className="summary-value">{cart.reduce(function(s, i) { return s + i.quantity; }, 0)}</div>
-                      </div>
-                      <div className="summary-item">
-                        <div className="summary-label">Type</div>
-                        <div className="summary-value">{form.saleType}</div>
-                      </div>
-                      <div className="summary-spacer" />
-                      <div className="summary-item">
-                        <div className="summary-label">Total</div>
-                        <div className="summary-value accent">{"$" + cartTotal.toFixed(2)}</div>
+                    <div style={{ marginTop: "14px" }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginBottom: "10px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px" }}>
+                          <span style={{ fontFamily: "var(--mono)", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--muted)" }}>Subtotal</span>
+                          <span className="mono" style={{ fontSize: "13px", fontWeight: 500 }}>{"$" + cartTotal.toFixed(2)}</span>
+                        </div>
+                        {parseFloat(form.fee) > 0 && (
+                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px" }}>
+                            <span style={{ fontFamily: "var(--mono)", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--muted)" }}>Fee</span>
+                            <span className="mono" style={{ fontSize: "13px", color: "var(--red)" }}>{"-$" + parseFloat(form.fee).toFixed(2)}</span>
+                          </div>
+                        )}
+                        {parseFloat(form.shipping) > 0 && (
+                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px" }}>
+                            <span style={{ fontFamily: "var(--mono)", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--muted)" }}>Shipping</span>
+                            <span className="mono" style={{ fontSize: "13px", color: "var(--red)" }}>{"-$" + parseFloat(form.shipping).toFixed(2)}</span>
+                          </div>
+                        )}
+                        <div style={{ borderTop: "1px solid var(--sep)", paddingTop: "6px", display: "flex", justifyContent: "space-between" }}>
+                          <span style={{ fontFamily: "var(--mono)", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--muted)" }}>Net</span>
+                          <span className="mono" style={{ fontSize: "14px", fontWeight: 700, color: "var(--accent)" }}>{"$" + (cartTotal - (parseFloat(form.fee) || 0) - (parseFloat(form.shipping) || 0)).toFixed(2)}</span>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -518,6 +542,8 @@ export default function MommeeVentas(props) {
                       { label: "Customer", value: form.customerName || "—" },
                       { label: "Platform", value: form.platform },
                       { label: "Payment", value: form.paymentMethod },
+                      { label: "Fee", value: parseFloat(form.fee) > 0 ? "$" + parseFloat(form.fee).toFixed(2) : "—" },
+                      { label: "Shipping", value: parseFloat(form.shipping) > 0 ? "$" + parseFloat(form.shipping).toFixed(2) : "—" },
                     ].map(function(row) {
                       return (
                         <div key={row.label} style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
@@ -620,13 +646,15 @@ export default function MommeeVentas(props) {
                         <th>Payment</th>
                         <th>Status</th>
                         <th>Region</th>
+                        <th style={{ textAlign: "right" }}>Fee</th>
+                        <th style={{ textAlign: "right" }}>Shipping</th>
                         <th style={{ textAlign: "right" }}>Total</th>
                       </tr>
                     </thead>
                     <tbody>
                       {filteredSales.length === 0 && (
                         <tr>
-                          <td colSpan={9} style={{ textAlign: "center", color: "var(--muted)", padding: "24px" }}>No sales found</td>
+                          <td colSpan={11} style={{ textAlign: "center", color: "var(--muted)", padding: "24px" }}>No sales found</td>
                         </tr>
                       )}
                       {filteredSales.map(function(s) {
@@ -642,6 +670,8 @@ export default function MommeeVentas(props) {
                             <td>{s.payment_method}</td>
                             <td><span className={"bdg " + statusClass}>{s.payment_status}</span></td>
                             <td>{s.vz_state || "—"}</td>
+                            <td className="mono" style={{ textAlign: "right", color: "var(--red)" }}>{parseFloat(s.fee) > 0 ? "$" + parseFloat(s.fee).toFixed(2) : "—"}</td>
+                            <td className="mono" style={{ textAlign: "right", color: "var(--red)" }}>{parseFloat(s.shipping) > 0 ? "$" + parseFloat(s.shipping).toFixed(2) : "—"}</td>
                             <td className="mono" style={{ textAlign: "right", fontWeight: 600 }}>{"$" + (parseFloat(s.total_usd) || 0).toFixed(2)}</td>
                           </tr>
                         );
