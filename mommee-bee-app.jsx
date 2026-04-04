@@ -66,11 +66,13 @@ export default function MommeeBeeApp(props) {
       var monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
       var monthExp   = allExpenses.filter(function(e) { return e.date >= monthStart && e.date <= monthEnd; });
 
+      console.log("[Recurring] fetched:", recurring.length, "items. Month expenses:", monthExp.length);
       var toInsert = recurring.filter(function(r) {
         return !monthExp.some(function(e) {
           return e.category === r.category && (e.description || "") === (r.description || "");
         });
       });
+      console.log("[Recurring] toInsert:", toInsert.length, toInsert.map(function(r) { return r.description; }));
 
       function applyExpenses(list) {
         setExpenses(list.map(function(e) { return { id: e.id, date: e.date, category: e.category, desc: e.description || "", amount: parseFloat(e.amount_usd) || 0 }; }));
@@ -78,8 +80,14 @@ export default function MommeeBeeApp(props) {
       }
 
       if (toInsert.length > 0) {
-        var rows = toInsert.map(function(r) { var day = r.day_of_month || 1; var d = new Date(now.getFullYear(), now.getMonth(), day); var dateStr = d.toISOString().split("T")[0]; return { date: dateStr, category: r.category, description: r.description, amount_usd: r.amount_usd }; });
+        var yr = now.getFullYear();
+        var mo = String(now.getMonth() + 1).padStart(2, "0");
+        var rows = toInsert.map(function(r) {
+          var day = String(r.day_of_month || 1).padStart(2, "0");
+          return { date: yr + "-" + mo + "-" + day, category: r.category, description: r.description, amount_usd: r.amount_usd };
+        });
         supabase.from("expenses").insert(rows).select().then(function(res) {
+          if (res.error) { console.error("Error inserting recurring expenses:", res.error); }
           applyExpenses(res.data ? allExpenses.concat(res.data) : allExpenses);
         });
       } else {
@@ -195,7 +203,8 @@ export default function MommeeBeeApp(props) {
   var now = new Date();
   var cm = now.getMonth();
   var cy = now.getFullYear();
-  var todayStr = now.toISOString().split("T")[0];
+  var todayStr = cy + "-" + String(cm + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0");
+  var monthPrefix = cy + "-" + String(cm + 1).padStart(2, "0") + "-";
   var dateLabel = MONTHS[cm] + " " + (now.getDate() < 10 ? "0" : "") + now.getDate() + ", " + cy;
 
   // Today
@@ -233,7 +242,7 @@ export default function MommeeBeeApp(props) {
   }, 0);
 
   // OPEX
-  var monthExpenses = expenses.filter(function(e) { return new Date(e.date).getMonth() === cm; });
+  var monthExpenses = expenses.filter(function(e) { return e.date && e.date.startsWith(monthPrefix); });
   var recurringKeys = recurringExpenses.map(function(r) { return r.category + "|" + r.desc; });
   var fixedExpenses = monthExpenses.filter(function(e) { return recurringKeys.indexOf(e.category + "|" + e.desc) >= 0; });
   var variableExpenses = monthExpenses.filter(function(e) { return recurringKeys.indexOf(e.category + "|" + e.desc) < 0; });
@@ -641,7 +650,7 @@ export default function MommeeBeeApp(props) {
                     </div>
                     <div className="form-group">
                       <label className="form-label">Amount ($)</label>
-                      <input className="form-input" type="number" value={expForm.amount} onChange={setE("amount")} placeholder="0.00" step="0.01" />
+                      <input className="form-input" type="text" inputMode="decimal" value={expForm.amount} onChange={setE("amount")} placeholder="0.00" />
                     </div>
                   </div>
                   <div className="form-row">
