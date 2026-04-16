@@ -49,6 +49,7 @@ export default function MommeeVentas(props) {
   var searchState = useState("");       var prodSearch = searchState[0];     var setProdSearch = searchState[1];
   var selState = useState(null);        var selectedProd = selState[0];      var setSelectedProd = selState[1];
   var qtyState = useState(1);           var qty = qtyState[0];              var setQty = qtyState[1];
+  var cpState = useState("");           var customPrice = cpState[0];        var setCustomPrice = cpState[1];
   var ddState = useState(false);        var showDropdown = ddState[0];       var setShowDropdown = ddState[1];
 
   var fdState = useState("");           var filterDate = fdState[0];         var setFilterDate = fdState[1];
@@ -86,13 +87,15 @@ export default function MommeeVentas(props) {
     setSelectedProd(p);
     setProdSearch(p.code + " — " + p.name);
     setShowDropdown(false);
+    var defaultPrice = form.saleType === "Wholesale" ? parseFloat(p.price_mayor) : parseFloat(p.price_detal);
+    setCustomPrice(defaultPrice.toFixed(2));
   }
 
   function addToCart() {
     if (!selectedProd) return;
-    var price = form.saleType === "Wholesale"
+    var price = parseFloat(customPrice) || (form.saleType === "Wholesale"
       ? parseFloat(selectedProd.price_mayor)
-      : parseFloat(selectedProd.price_detal);
+      : parseFloat(selectedProd.price_detal));
     var q = parseInt(qty) || 1;
 
     setCart(function(prev) {
@@ -120,6 +123,7 @@ export default function MommeeVentas(props) {
     setSelectedProd(null);
     setProdSearch("");
     setQty(1);
+    setCustomPrice("");
   }
 
   function removeFromCart(productId) {
@@ -133,6 +137,20 @@ export default function MommeeVentas(props) {
         if (item.product_id === productId) {
           var copy = {}; for (var k in item) copy[k] = item[k];
           copy.quantity = q;
+          return copy;
+        }
+        return item;
+      });
+    });
+  }
+
+  function updateCartPrice(productId, newPrice) {
+    var p = parseFloat(newPrice) || 0;
+    setCart(function(prev) {
+      return prev.map(function(item) {
+        if (item.product_id === productId) {
+          var copy = {}; for (var k in item) copy[k] = item[k];
+          copy.unit_price = p;
           return copy;
         }
         return item;
@@ -411,6 +429,18 @@ export default function MommeeVentas(props) {
                         value={qty}
                         onChange={function(e) { setQty(e.target.value); }}
                         style={{ width: "70px", textAlign: "center" }}
+                        placeholder="Qty"
+                      />
+                      <input
+                        className="form-input"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={customPrice}
+                        onChange={function(e) { setCustomPrice(e.target.value); }}
+                        style={{ width: "90px", textAlign: "right" }}
+                        placeholder="Precio"
+                        disabled={!selectedProd}
                       />
                       <button
                         type="button"
@@ -486,17 +516,25 @@ export default function MommeeVentas(props) {
                             ×
                           </button>
                         </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                           <input
                             className="form-input"
                             type="number"
                             min="1"
                             value={item.quantity}
                             onChange={function(e) { updateCartQty(item.product_id, e.target.value); }}
-                            style={{ width: "60px", padding: "5px 8px", textAlign: "center" }}
+                            style={{ width: "58px", padding: "5px 8px", textAlign: "center" }}
                           />
                           <span style={{ fontSize: "12px", color: "var(--muted)" }}>×</span>
-                          <span className="mono" style={{ fontSize: "12px", color: "var(--muted)" }}>{"$" + item.unit_price.toFixed(2)}</span>
+                          <input
+                            className="form-input"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={item.unit_price}
+                            onChange={function(e) { updateCartPrice(item.product_id, e.target.value); }}
+                            style={{ width: "78px", padding: "5px 8px", textAlign: "right" }}
+                          />
                           <span className="mono" style={{ marginLeft: "auto", fontSize: "14px", fontWeight: 600, color: "var(--dark)" }}>
                             {"$" + (item.quantity * item.unit_price).toFixed(2)}
                           </span>
