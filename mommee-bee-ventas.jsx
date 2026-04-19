@@ -65,16 +65,6 @@ export default function MommeeVentas(props) {
 
   useEffect(function() { loadData(); }, []);
 
-  useEffect(function() {
-    if (form.platform === "Shopify") {
-      var af = cartTotal > 0 ? (cartTotal * 0.029 + 0.30).toFixed(2) : "";
-      setForm(function(f) { var n = {}; for (var k in f) n[k] = f[k]; n.fee = af; return n; });
-    } else if (form.platform === "Amazon") {
-      var af = cartTotal > 0 ? (cartTotal * 0.15 + 0.30).toFixed(2) : "";
-      setForm(function(f) { var n = {}; for (var k in f) n[k] = f[k]; n.fee = af; return n; });
-    }
-  }, [form.platform, cartTotal]);
-
   function loadData() {
     setLoading(true);
     var year = new Date().getFullYear();
@@ -173,6 +163,18 @@ export default function MommeeVentas(props) {
   }
 
   var cartTotal = cart.reduce(function(sum, item) { return sum + item.quantity * item.unit_price; }, 0);
+
+  useEffect(function() {
+    if (form.platform === "Shopify") {
+      var af = cartTotal > 0 ? (cartTotal * 0.029 + 0.30).toFixed(2) : "";
+      setForm(function(f) { var n = {}; for (var k in f) n[k] = f[k]; n.fee = af; return n; });
+    } else if (form.platform === "Amazon") {
+      var af = cartTotal > 0 ? (cartTotal * 0.15 + 0.30).toFixed(2) : "";
+      setForm(function(f) { var n = {}; for (var k in f) n[k] = f[k]; n.fee = af; return n; });
+    } else {
+      setForm(function(f) { var n = {}; for (var k in f) n[k] = f[k]; n.fee = ""; return n; });
+    }
+  }, [form.platform, cartTotal]);
 
   function handleSubmit(e) {
     if (e) e.preventDefault();
