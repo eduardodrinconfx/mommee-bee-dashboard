@@ -194,7 +194,7 @@ export default function MommeeVentas(props) {
         notes: form.notes,
         fee: parseFloat(form.fee) || 0,
         shipping: parseFloat(form.shipping) || 0,
-        total_usd: cartTotal,
+        total_usd: cartTotal - (parseFloat(form.fee) || 0) - (parseFloat(form.shipping) || 0),
       };
       supabase.from("sales").insert(saleRow).select().single().then(function(res) {
         if (res.error) { setMsg("Error saving sale: " + res.error.message); setSaving(false); return; }
@@ -682,7 +682,7 @@ export default function MommeeVentas(props) {
                   cursor: (saving || cart.length === 0) ? "not-allowed" : "pointer",
                 }}
               >
-                {saving ? "Saving..." : "Confirm Sale · $" + cartTotal.toFixed(2)}
+                {saving ? "Saving..." : "Confirm Sale · $" + (cartTotal - (parseFloat(form.fee) || 0) - (parseFloat(form.shipping) || 0)).toFixed(2)}
               </button>
             </div>
           </div>
