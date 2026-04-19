@@ -61,6 +61,16 @@ export default function MommeeVentas(props) {
 
   useEffect(function() { loadData(); }, []);
 
+  useEffect(function() {
+    if (form.platform === "Shopify") {
+      var af = cartTotal > 0 ? (cartTotal * 0.029 + 0.30).toFixed(2) : "";
+      setForm(function(f) { var n = {}; for (var k in f) n[k] = f[k]; n.fee = af; return n; });
+    } else if (form.platform === "Amazon") {
+      var af = cartTotal > 0 ? (cartTotal * 0.15 + 0.30).toFixed(2) : "";
+      setForm(function(f) { var n = {}; for (var k in f) n[k] = f[k]; n.fee = af; return n; });
+    }
+  }, [form.platform, cartTotal]);
+
   function loadData() {
     setLoading(true);
     var year = new Date().getFullYear();
@@ -461,8 +471,19 @@ export default function MommeeVentas(props) {
 
                   <div className="form-row" style={{ gridTemplateColumns: "1fr 1fr" }}>
                     <div className="form-group">
-                      <label className="form-label">Fee ($)</label>
-                      <input className="form-input" type="number" min="0" step="0.01" placeholder="0.00" value={form.fee} onChange={function(e) { setForm(function(f) { var n = {}; for (var k in f) n[k] = f[k]; n.fee = e.target.value; return n; }); }} />
+                      <label className="form-label">
+                        {"Fee ($)"}
+                        {form.platform === "Shopify" && <span style={{ marginLeft: "6px", fontSize: "10px", fontFamily: "var(--mono)", color: "var(--accent)", background: "rgba(179,106,35,.1)", padding: "1px 5px", borderRadius: "3px" }}>{"2.9% + $0.30 · auto"}</span>}
+                        {form.platform === "Amazon" && <span style={{ marginLeft: "6px", fontSize: "10px", fontFamily: "var(--mono)", color: "var(--accent)", background: "rgba(179,106,35,.1)", padding: "1px 5px", borderRadius: "3px" }}>{"15% + $0.30 · auto"}</span>}
+                      </label>
+                      <input
+                        className="form-input"
+                        type="number" min="0" step="0.01" placeholder="0.00"
+                        value={form.fee}
+                        readOnly={form.platform === "Shopify" || form.platform === "Amazon"}
+                        style={form.platform === "Shopify" || form.platform === "Amazon" ? { background: "var(--accent-light)", cursor: "default", color: "var(--accent)", fontWeight: 600 } : {}}
+                        onChange={function(e) { setForm(function(f) { var n = {}; for (var k in f) n[k] = f[k]; n.fee = e.target.value; return n; }); }}
+                      />
                     </div>
                     <div className="form-group">
                       <label className="form-label">Shipping ($)</label>
