@@ -59,6 +59,10 @@ export default function MommeeVentas(props) {
   var tabState = useState("form");      var activeTab = tabState[0];         var setActiveTab = tabState[1];
   var msgState = useState("");          var msg = msgState[0];               var setMsg = msgState[1];
 
+  var editSaleState = useState(null);   var editingSale = editSaleState[0];  var setEditingSale = editSaleState[1];
+  var editFormState = useState({});     var editForm = editFormState[0];     var setEditForm = editFormState[1];
+  var editSavingState = useState(false); var editSaving = editSavingState[0]; var setEditSaving = editSavingState[1];
+
   useEffect(function() { loadData(); }, []);
 
   useEffect(function() {
@@ -251,6 +255,53 @@ export default function MommeeVentas(props) {
     } else {
       doSave();
     }
+  }
+
+  function openEdit(s) {
+    setEditingSale(s);
+    setEditForm({
+      date: s.date || "",
+      customer_name: s.customer_name || "",
+      customer_phone: s.customer_phone || "",
+      platform: s.platform || "Instagram",
+      sale_type: s.sale_type || "Retail",
+      payment_method: s.payment_method || "Zelle",
+      payment_status: s.payment_status || "Paid",
+      vz_state: s.vz_state || "Florida",
+      fee: s.fee != null ? String(s.fee) : "",
+      shipping: s.shipping != null ? String(s.shipping) : "",
+      total_usd: s.total_usd != null ? String(s.total_usd) : "",
+      notes: s.notes || "",
+    });
+  }
+
+  function handleEditSave() {
+    setEditSaving(true);
+    var updates = {
+      date: editForm.date,
+      customer_name: editForm.customer_name,
+      platform: editForm.platform,
+      sale_type: editForm.sale_type,
+      payment_method: editForm.payment_method,
+      payment_status: editForm.payment_status,
+      vz_state: editForm.vz_state,
+      fee: parseFloat(editForm.fee) || 0,
+      shipping: parseFloat(editForm.shipping) || 0,
+      total_usd: parseFloat(editForm.total_usd) || 0,
+      notes: editForm.notes,
+    };
+    supabase.from("sales").update(updates).eq("id", editingSale.id).then(function(res) {
+      setEditSaving(false);
+      if (res.error) { setMsg("Error al guardar: " + res.error.message); return; }
+      setMsg("Venta actualizada correctamente.");
+      setEditingSale(null);
+      loadData();
+      setTimeout(function() { setMsg(""); }, 3000);
+    });
+  }
+
+  function setEF(key, val) {
+    setEditForm(function(f) { var n = {}; for (var k in f) n[k] = f[k]; n[key] = val; return n; });
   }
 
   var filteredSales = sales.filter(function(s) {
@@ -708,12 +759,13 @@ export default function MommeeVentas(props) {
                         <th style={{ textAlign: "right" }}>Fee</th>
                         <th style={{ textAlign: "right" }}>Shipping</th>
                         <th style={{ textAlign: "right" }}>Total</th>
+                        <th></th>
                       </tr>
                     </thead>
                     <tbody>
                       {filteredSales.length === 0 && (
                         <tr>
-                          <td colSpan={11} style={{ textAlign: "center", color: "var(--muted)", padding: "24px" }}>No sales found</td>
+                          <td colSpan={12} style={{ textAlign: "center", color: "var(--muted)", padding: "24px" }}>No sales found</td>
                         </tr>
                       )}
                       {filteredSales.map(function(s) {
@@ -732,6 +784,22 @@ export default function MommeeVentas(props) {
                             <td className="mono" style={{ textAlign: "right", color: "var(--red)" }}>{parseFloat(s.fee) > 0 ? "$" + parseFloat(s.fee).toFixed(2) : "—"}</td>
                             <td className="mono" style={{ textAlign: "right", color: "var(--red)" }}>{parseFloat(s.shipping) > 0 ? "$" + parseFloat(s.shipping).toFixed(2) : "—"}</td>
                             <td className="mono" style={{ textAlign: "right", fontWeight: 600 }}>{"$" + (parseFloat(s.total_usd) || 0).toFixed(2)}</td>
+                            <td style={{ textAlign: "center" }}>
+                              <button
+                                onClick={function() { openEdit(s); }}
+                                title="Editar venta"
+                                style={{
+                                  background: "none", border: "1px solid var(--border)", borderRadius: "var(--rs)",
+                                  cursor: "pointer", padding: "3px 8px", color: "var(--accent)",
+                                  fontSize: "12px", lineHeight: 1,
+                                }}
+                              >
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "12px", height: "12px", verticalAlign: "middle" }}>
+                                  <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+                                  <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                </svg>
+                              </button>
+                            </td>
                           </tr>
                         );
                       })}
@@ -753,6 +821,98 @@ export default function MommeeVentas(props) {
         )}
 
       </div>
+
+      {/* Edit Sale Modal */}
+      {editingSale && (
+        <div style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 1000,
+          display: "flex", alignItems: "center", justifyContent: "center", padding: "24px",
+        }} onClick={function(e) { if (e.target === e.currentTarget) setEditingSale(null); }}>
+          <div style={{
+            background: "var(--white)", borderRadius: "var(--r)", boxShadow: "var(--sh-lg)",
+            width: "100%", maxWidth: "640px", maxHeight: "90vh", overflowY: "auto",
+          }}>
+            <div style={{ padding: "20px 24px", borderBottom: "1px solid var(--sep)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: "15px", letterSpacing: "-0.02em" }}>{"Editar Venta #" + editingSale.id}</div>
+                <div style={{ fontFamily: "var(--mono)", fontSize: "11px", color: "var(--muted)", marginTop: "2px" }}>Modifica los campos y guarda</div>
+              </div>
+              <button onClick={function() { setEditingSale(null); }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "20px", color: "var(--muted)", padding: "4px 8px" }}>×</button>
+            </div>
+            <div style={{ padding: "20px 24px" }}>
+              <div className="form-row" style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
+                <div className="form-group">
+                  <label className="form-label">Date</label>
+                  <input className="form-input" type="date" value={editForm.date} onChange={function(e) { setEF("date", e.target.value); }} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Sale Type</label>
+                  <select className="form-input" value={editForm.sale_type} onChange={function(e) { setEF("sale_type", e.target.value); }}>
+                    <option value="Retail">Retail</option>
+                    <option value="Wholesale">Wholesale</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Platform</label>
+                  <select className="form-input" value={editForm.platform} onChange={function(e) { setEF("platform", e.target.value); }}>
+                    {PLATFORMS.map(function(p) { return <option key={p} value={p}>{p}</option>; })}
+                  </select>
+                </div>
+              </div>
+              <div className="form-row" style={{ gridTemplateColumns: "1fr 1fr" }}>
+                <div className="form-group">
+                  <label className="form-label">Customer Name</label>
+                  <input className="form-input" type="text" value={editForm.customer_name} onChange={function(e) { setEF("customer_name", e.target.value); }} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Region</label>
+                  <select className="form-input" value={editForm.vz_state} onChange={function(e) { setEF("vz_state", e.target.value); }}>
+                    {REGIONS.map(function(r) { return <option key={r} value={r}>{r}</option>; })}
+                  </select>
+                </div>
+              </div>
+              <div className="form-row" style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
+                <div className="form-group">
+                  <label className="form-label">Payment Method</label>
+                  <select className="form-input" value={editForm.payment_method} onChange={function(e) { setEF("payment_method", e.target.value); }}>
+                    {PAYMENT_METHODS.map(function(p) { return <option key={p} value={p}>{p}</option>; })}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Payment Status</label>
+                  <select className="form-input" value={editForm.payment_status} onChange={function(e) { setEF("payment_status", e.target.value); }}>
+                    {PAYMENT_STATUSES.map(function(s) { return <option key={s} value={s}>{s}</option>; })}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Total ($)</label>
+                  <input className="form-input" type="number" min="0" step="0.01" value={editForm.total_usd} onChange={function(e) { setEF("total_usd", e.target.value); }} />
+                </div>
+              </div>
+              <div className="form-row" style={{ gridTemplateColumns: "1fr 1fr" }}>
+                <div className="form-group">
+                  <label className="form-label">Fee ($)</label>
+                  <input className="form-input" type="number" min="0" step="0.01" placeholder="0.00" value={editForm.fee} onChange={function(e) { setEF("fee", e.target.value); }} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Shipping ($)</label>
+                  <input className="form-input" type="number" min="0" step="0.01" placeholder="0.00" value={editForm.shipping} onChange={function(e) { setEF("shipping", e.target.value); }} />
+                </div>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Notes</label>
+                <input className="form-input" type="text" value={editForm.notes} onChange={function(e) { setEF("notes", e.target.value); }} style={{ width: "100%" }} />
+              </div>
+              <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end", marginTop: "8px" }}>
+                <button className="btn" onClick={function() { setEditingSale(null); }} disabled={editSaving}>Cancelar</button>
+                <button className="btn btn-primary" onClick={handleEditSave} disabled={editSaving}>
+                  {editSaving ? "Guardando..." : "Guardar Cambios"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
