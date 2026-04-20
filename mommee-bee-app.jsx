@@ -33,6 +33,7 @@ export default function MommeeBeeApp(props) {
   var editingDecState = useState({ id: null, text: "" }); var editingDec = editingDecState[0]; var setEditingDec = editingDecState[1];
   var editingTaskState = useState({ decId: null, taskId: null, text: "", dueDate: "" }); var editingTask = editingTaskState[0]; var setEditingTask = editingTaskState[1];
   var dragIdxState = useState(null); var dragIdx = dragIdxState[0]; var setDragIdx = dragIdxState[1];
+  var showAllExpState = useState(false); var showAllExp = showAllExpState[0]; var setShowAllExp = showAllExpState[1];
 
   useEffect(function() { loadData(); }, [refreshKey]);
 
@@ -634,9 +635,12 @@ export default function MommeeBeeApp(props) {
             <div className="card-h">
               <div>
                 <div className="card-t">Gastos Operativos</div>
-                <div className="card-sub">Expenses this month</div>
+                <div className="card-sub">{showAllExp ? "Historial completo " + new Date().getFullYear() : "Expenses this month"}</div>
               </div>
-              <button className="btn" onClick={function() { setShowExpenseForm(function(v) { return !v; }); }} style={{ padding: "6px 14px" }}>+ Add</button>
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button className="btn" onClick={function() { setShowAllExp(function(v) { return !v; }); }} style={{ padding: "6px 14px", background: showAllExp ? "var(--accent)" : "", color: showAllExp ? "#fff" : "" }}>{showAllExp ? "Este mes" : "Ver todos"}</button>
+                <button className="btn" onClick={function() { setShowExpenseForm(function(v) { return !v; }); }} style={{ padding: "6px 14px" }}>+ Add</button>
+              </div>
             </div>
             <div className="card-b">
               {showExpenseForm && (
@@ -672,45 +676,92 @@ export default function MommeeBeeApp(props) {
                 </div>
               )}
 
-              <div style={{ maxHeight: "320px", overflowY: "auto" }}>
-                {fixedExpenses.length > 0 && (
+              <div style={{ maxHeight: showAllExp ? "520px" : "320px", overflowY: "auto" }}>
+                {!showAllExp && (
                   <div>
-                    <div style={{ fontSize: "10px", fontWeight: 600, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em", padding: "4px 0 6px" }}>Gastos Fijos Mensuales</div>
-                    {fixedExpenses.map(function(e) {
-                      return (
-                        <div key={"r" + e.id} className="exp-row">
-                          <span className="bdg" style={{ background: "#eef2ff", color: "#4f46e5", border: "1px solid #c7d2fe", fontSize: "10px" }}>{e.category}</span>
-                          <div style={{ flex: 1, fontSize: "12px", color: "var(--muted)" }}>{e.desc}</div>
-                          <span style={{ fontSize: "9px", background: "#f0fdf4", color: "#16a34a", border: "1px solid #bbf7d0", borderRadius: "4px", padding: "1px 6px", marginRight: "6px", fontWeight: 600 }}>Fijo</span>
-                          <span className="mono" style={{ color: "var(--red)" }}>{"-$" + e.amount.toFixed(2)}</span>
-                        </div>
-                      );
-                    })}
+                    {fixedExpenses.length > 0 && (
+                      <div>
+                        <div style={{ fontSize: "10px", fontWeight: 600, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em", padding: "4px 0 6px" }}>Gastos Fijos Mensuales</div>
+                        {fixedExpenses.map(function(e) {
+                          return (
+                            <div key={"r" + e.id} className="exp-row">
+                              <span className="bdg" style={{ background: "#eef2ff", color: "#4f46e5", border: "1px solid #c7d2fe", fontSize: "10px" }}>{e.category}</span>
+                              <div style={{ flex: 1, fontSize: "12px", color: "var(--muted)" }}>{e.desc}</div>
+                              <span style={{ fontSize: "9px", background: "#f0fdf4", color: "#16a34a", border: "1px solid #bbf7d0", borderRadius: "4px", padding: "1px 6px", marginRight: "6px", fontWeight: 600 }}>Fijo</span>
+                              <span className="mono" style={{ color: "var(--red)" }}>{"-$" + e.amount.toFixed(2)}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {variableExpenses.length > 0 && (
+                      <div>
+                        <div style={{ fontSize: "10px", fontWeight: 600, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em", padding: "10px 0 6px" }}>Gastos Variables</div>
+                        {variableExpenses.map(function(e) {
+                          return (
+                            <div key={e.id} className="exp-row">
+                              <span className="bdg bdg-or">{e.category}</span>
+                              <div style={{ flex: 1, fontSize: "12px", color: "var(--muted)" }}>{e.desc}</div>
+                              <span className="mono" style={{ color: "var(--red)" }}>{"-$" + e.amount}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {monthExpenses.length === 0 && (
+                      <div style={{ textAlign: "center", color: "var(--muted)", fontSize: "13px", padding: "24px 0" }}>No hay gastos este mes</div>
+                    )}
                   </div>
                 )}
-                {variableExpenses.length > 0 && (
+                {showAllExp && (
                   <div>
-                    <div style={{ fontSize: "10px", fontWeight: 600, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em", padding: "10px 0 6px" }}>Gastos Variables</div>
-                    {variableExpenses.map(function(e) {
-                      return (
-                        <div key={e.id} className="exp-row">
-                          <span className="bdg bdg-or">{e.category}</span>
-                          <div style={{ flex: 1, fontSize: "12px", color: "var(--muted)" }}>{e.desc}</div>
-                          <span className="mono" style={{ color: "var(--red)" }}>{"-$" + e.amount}</span>
-                        </div>
-                      );
-                    })}
+                    {(function() {
+                      var grouped = {};
+                      expenses.forEach(function(e) {
+                        var key = e.date ? e.date.substring(0, 7) : "Unknown";
+                        if (!grouped[key]) grouped[key] = [];
+                        grouped[key].push(e);
+                      });
+                      var keys = Object.keys(grouped).sort(function(a, b) { return b.localeCompare(a); });
+                      if (keys.length === 0) return <div style={{ textAlign: "center", color: "var(--muted)", fontSize: "13px", padding: "24px 0" }}>No hay gastos registrados</div>;
+                      return keys.map(function(monthKey) {
+                        var monthTotal = grouped[monthKey].reduce(function(s, e) { return s + (e.amount || 0); }, 0);
+                        var parts = monthKey.split("-");
+                        var label = MONTHS[parseInt(parts[1], 10) - 1] + " " + parts[0];
+                        return (
+                          <div key={monthKey} style={{ marginBottom: "10px" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "10px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em", padding: "6px 0 4px", borderBottom: "1px solid var(--border)" }}>
+                              <span>{label}</span>
+                              <span className="mono" style={{ color: "var(--red)" }}>{"-$" + monthTotal.toFixed(2)}</span>
+                            </div>
+                            {grouped[monthKey].map(function(e) {
+                              var isFijo = recurringKeys.indexOf(e.category + "|" + e.desc) >= 0;
+                              return (
+                                <div key={e.id} className="exp-row">
+                                  <span className="bdg" style={isFijo ? { background: "#eef2ff", color: "#4f46e5", border: "1px solid #c7d2fe", fontSize: "10px" } : {}}>{e.category}</span>
+                                  <div style={{ flex: 1, fontSize: "12px", color: "var(--muted)" }}>{e.desc}</div>
+                                  <div style={{ fontSize: "11px", color: "var(--muted)", marginRight: "8px" }}>{e.date}</div>
+                                  {isFijo && <span style={{ fontSize: "9px", background: "#f0fdf4", color: "#16a34a", border: "1px solid #bbf7d0", borderRadius: "4px", padding: "1px 6px", marginRight: "6px", fontWeight: 600 }}>Fijo</span>}
+                                  <span className="mono" style={{ color: "var(--red)" }}>{"-$" + (e.amount || 0).toFixed(2)}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      });
+                    })()}
                   </div>
-                )}
-                {monthExpenses.length === 0 && (
-                  <div style={{ textAlign: "center", color: "var(--muted)", fontSize: "13px", padding: "24px 0" }}>No hay gastos este mes</div>
                 )}
               </div>
 
               <div className="summary-bar" style={{ marginTop: "12px" }}>
-                <div className="summary-item"><div className="summary-label">Total Expenses</div><div className="summary-value" style={{ color: "var(--red)" }}>{"-$" + totalOpex.toFixed(2)}</div></div>
+                {showAllExp ? (
+                  <div className="summary-item"><div className="summary-label">Total {new Date().getFullYear()}</div><div className="summary-value" style={{ color: "var(--red)" }}>{"-$" + expenses.reduce(function(s, e) { return s + (e.amount || 0); }, 0).toFixed(2)}</div></div>
+                ) : (
+                  <div className="summary-item"><div className="summary-label">Total Expenses</div><div className="summary-value" style={{ color: "var(--red)" }}>{"-$" + totalOpex.toFixed(2)}</div></div>
+                )}
                 <div className="summary-spacer" />
-                <div className="summary-item"><div className="summary-label">Fijos</div><div className="summary-value" style={{ color: "var(--red)" }}>{"-$" + recurringTotal.toFixed(2)}</div></div>
+                {!showAllExp && <div className="summary-item"><div className="summary-label">Fijos</div><div className="summary-value" style={{ color: "var(--red)" }}>{"-$" + recurringTotal.toFixed(2)}</div></div>}
               </div>
             </div>
           </div>
