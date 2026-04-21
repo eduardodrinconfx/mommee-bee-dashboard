@@ -34,6 +34,10 @@ export default function MommeeBeeApp(props) {
   var editingTaskState = useState({ decId: null, taskId: null, text: "", dueDate: "" }); var editingTask = editingTaskState[0]; var setEditingTask = editingTaskState[1];
   var dragIdxState = useState(null); var dragIdx = dragIdxState[0]; var setDragIdx = dragIdxState[1];
   var showAllExpState = useState(false); var showAllExp = showAllExpState[0]; var setShowAllExp = showAllExpState[1];
+  var eventExpState = useState([]); var eventExpenses = eventExpState[0]; var setEventExpenses = eventExpState[1];
+  var abonoState = useState({ id: null, amount: "" }); var abonoInput = abonoState[0]; var setAbonoInput = abonoState[1];
+  var showEventFormState = useState(false); var showEventForm = showEventFormState[0]; var setShowEventForm = showEventFormState[1];
+  var eventFormState = useState({ description: "", total_amount: "" }); var eventForm = eventFormState[0]; var setEventForm = eventFormState[1];
 
   useEffect(function() { loadData(); }, [refreshKey]);
 
@@ -50,6 +54,7 @@ export default function MommeeBeeApp(props) {
       supabase.from("products").select("*"),
       supabase.from("recurring_expenses").select("*").eq("active", true).order("category"),
       supabase.from("decisions").select("*").order("position", { ascending: true }),
+      supabase.from("event_expenses").select("*").order("created_at", { ascending: true }),
     ]).then(function(results) {
       if (results[0].data) setSales(results[0].data);
       if (results[1].data) setSaleItems(results[1].data);
@@ -57,6 +62,7 @@ export default function MommeeBeeApp(props) {
       if (results[4].data) setClients(results[4].data);
       if (results[5].data) setProducts(results[5].data);
       if (results[7].data) setDecisions(results[7].data.map(function(d) { return { id: d.id, text: d.text, priority: d.priority, status: d.status, date: d.date, tasks: d.tasks || [] }; }));
+      if (results[8].data) setEventExpenses(results[8].data);
 
       var allExpenses = results[3].data || [];
       var recurring = results[6].data || [];
@@ -174,6 +180,36 @@ export default function MommeeBeeApp(props) {
     updateDecTasks(decId, (dec.tasks || []).filter(function(t) { return t.id !== taskId; }));
   };
 
+  var addAbono = function(id, amount) {
+    var amt = parseFloat(amount) || 0;
+    if (amt <= 0) return;
+    var ev = eventExpenses.filter(function(e) { return e.id === id; })[0];
+    if (!ev) return;
+    var newPaid = (parseFloat(ev.paid_amount) || 0) + amt;
+    supabase.from("event_expenses").update({ paid_amount: newPaid }).eq("id", id).then(function() {});
+    var today = new Date().toISOString().split("T")[0];
+    supabase.from("expenses").insert({ date: today, category: "Evento", description: ev.description + " - Abono", amount_usd: amt }).select().single().then(function(res) {
+      if (res.data) setExpenses(function(ex) { return [{ id: res.data.id, date: today, category: "Evento", desc: ev.description + " - Abono", amount: amt }].concat(ex); });
+    });
+    setEventExpenses(function(evs) { return evs.map(function(e) { if (e.id !== id) return e; var n = {}; for (var x in e) n[x] = e[x]; n.paid_amount = newPaid; return n; }); });
+    setAbonoInput({ id: null, amount: "" });
+  };
+
+  var addEventExpense = function() {
+    if (!eventForm.description.trim() || !parseFloat(eventForm.total_amount)) return;
+    var row = { description: eventForm.description.trim(), total_amount: parseFloat(eventForm.total_amount), paid_amount: 0 };
+    supabase.from("event_expenses").insert(row).select().single().then(function(res) {
+      if (res.data) setEventExpenses(function(evs) { return evs.concat([res.data]); });
+    });
+    setEventForm({ description: "", total_amount: "" });
+    setShowEventForm(false);
+  };
+
+  var deleteEventExpense = function(id) {
+    supabase.from("event_expenses").delete().eq("id", id).then(function() {});
+    setEventExpenses(function(evs) { return evs.filter(function(e) { return e.id !== id; }); });
+  };
+
   var getDecProgress = function(dec) {
     var tasks = dec.tasks || [];
     if (tasks.length === 0) return -1;
@@ -286,6 +322,11 @@ export default function MommeeBeeApp(props) {
 
   // Active imports
   var activeImports = imports.filter(function(i) { return i.status !== "Received"; });
+
+  // Event expenses
+  var totalEventAmount = eventExpenses.reduce(function(s, e) { return s + (parseFloat(e.total_amount) || 0); }, 0);
+  var totalEventPaid = eventExpenses.reduce(function(s, e) { return s + (parseFloat(e.paid_amount) || 0); }, 0);
+  var totalEventPending = totalEventAmount - totalEventPaid;
 
   // Sparkline bars helper
   var sparkBars = function(data) {
@@ -763,6 +804,99 @@ export default function MommeeBeeApp(props) {
                 <div className="summary-spacer" />
                 {!showAllExp && <div className="summary-item"><div className="summary-label">Fijos</div><div className="summary-value" style={{ color: "var(--red)" }}>{"-$" + recurringTotal.toFixed(2)}</div></div>}
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ROW 6b: Pagos de Evento */}
+        <div className="card">
+          <div className="card-h">
+            <div>
+              <div className="card-t">Pagos del Evento</div>
+              <div className="card-sub">{eventExpenses.length + " gastos \u00B7 $" + totalEventPending.toFixed(2) + " pendiente"}</div>
+            </div>
+            <button className="btn" onClick={function() { setShowEventForm(function(v) { return !v; }); }} style={{ padding: "6px 14px" }}>+ Agregar</button>
+          </div>
+          <div className="card-b">
+            <div className="summary-bar" style={{ marginBottom: "16px" }}>
+              <div className="summary-item"><div className="summary-label">Total</div><div className="summary-value">{"$" + totalEventAmount.toFixed(2)}</div></div>
+              <div className="summary-item"><div className="summary-label">Abonado</div><div className="summary-value" style={{ color: "var(--green)" }}>{"$" + totalEventPaid.toFixed(2)}</div></div>
+              <div className="summary-spacer" />
+              <div className="summary-item"><div className="summary-label">Pendiente</div><div className="summary-value" style={{ color: "var(--red)" }}>{"$" + totalEventPending.toFixed(2)}</div></div>
+            </div>
+
+            {showEventForm && (
+              <div style={{ background: "var(--accent-light)", border: "1px solid var(--accent)", borderRadius: "var(--rs)", padding: "14px", marginBottom: "14px", animation: "slideIn 0.2s ease" }}>
+                <div className="form-row">
+                  <div className="form-group" style={{ gridColumn: "span 2" }}>
+                    <label className="form-label">Descripcion</label>
+                    <input className="form-input" value={eventForm.description} onChange={function(e) { setEventForm({ description: e.target.value, total_amount: eventForm.total_amount }); }} placeholder="Ej: Estacion de cafe" onKeyDown={function(e) { if (e.key === "Enter") addEventExpense(); }} autoFocus />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Monto Total ($)</label>
+                    <input className="form-input" type="text" inputMode="decimal" value={eventForm.total_amount} onChange={function(e) { setEventForm({ description: eventForm.description, total_amount: e.target.value }); }} placeholder="0.00" onKeyDown={function(e) { if (e.key === "Enter") addEventExpense(); }} />
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
+                  <button className="btn btn-primary" onClick={addEventExpense}>Guardar</button>
+                  <button className="btn" onClick={function() { setShowEventForm(false); }}>Cancelar</button>
+                </div>
+              </div>
+            )}
+
+            {eventExpenses.length === 0 && (
+              <div style={{ textAlign: "center", padding: "32px 0", color: "var(--muted)" }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: "32px", height: "32px", margin: "0 auto 8px", display: "block", opacity: 0.3 }}>
+                  <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+                </svg>
+                No hay pagos de evento. Agrega el primero.
+              </div>
+            )}
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              {eventExpenses.map(function(ev) {
+                var total = parseFloat(ev.total_amount) || 0;
+                var paid = parseFloat(ev.paid_amount) || 0;
+                var pct = total > 0 ? Math.min(Math.round((paid / total) * 100), 100) : 0;
+                var done = paid >= total && total > 0;
+                var showAbono = abonoInput.id === ev.id;
+                return (
+                  <div key={ev.id} style={{ padding: "12px 14px", background: done ? "#f0fdf4" : "#fff", border: "1px solid", borderColor: done ? "#86efac" : "var(--border)", borderRadius: "var(--rs)", transition: "all 0.2s" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
+                      <div style={{ flex: 1, fontSize: "13px", fontWeight: 600, color: "var(--text)" }}>{ev.description}</div>
+                      {done && <span style={{ fontSize: "10px", background: "#f0fdf4", color: "#16a34a", border: "1px solid #bbf7d0", borderRadius: "4px", padding: "1px 6px", fontWeight: 600 }}>✓ Pagado</span>}
+                      <button onClick={function() { deleteEventExpense(ev.id); }} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", padding: "0", lineHeight: 1 }}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "13px", height: "13px" }}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                      </button>
+                    </div>
+
+                    <div style={{ marginBottom: "8px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+                        <span style={{ fontSize: "11px", color: "var(--muted)" }}>{"Abonado: $" + paid.toFixed(2) + " / $" + total.toFixed(2)}</span>
+                        <span style={{ fontSize: "11px", fontWeight: 700, color: done ? "#16a34a" : "var(--accent)" }}>{pct + "%"}</span>
+                      </div>
+                      <div style={{ height: "6px", background: "#e5e5e5", borderRadius: "99px", overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: pct + "%", background: done ? "#16a34a" : "var(--accent)", borderRadius: "99px", transition: "width 0.4s ease" }} />
+                      </div>
+                    </div>
+
+                    <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                      <span style={{ fontSize: "11px", color: "var(--muted)" }}>{"Pendiente: "}<strong style={{ color: done ? "#16a34a" : "var(--red)" }}>{done ? "$0.00" : ("$" + (total - paid).toFixed(2))}</strong></span>
+                      {!done && (
+                        showAbono ? (
+                          <div style={{ display: "flex", gap: "6px", alignItems: "center", marginLeft: "auto" }}>
+                            <input className="form-input" type="text" inputMode="decimal" style={{ width: "90px", padding: "4px 8px", fontSize: "12px" }} placeholder="Monto" value={abonoInput.amount} onChange={function(e) { setAbonoInput({ id: ev.id, amount: e.target.value }); }} autoFocus onKeyDown={function(e) { if (e.key === "Enter") addAbono(ev.id, abonoInput.amount); if (e.key === "Escape") setAbonoInput({ id: null, amount: "" }); }} />
+                            <button className="btn btn-primary" onClick={function() { addAbono(ev.id, abonoInput.amount); }} style={{ padding: "4px 10px", fontSize: "12px" }}>✓</button>
+                            <button className="btn" onClick={function() { setAbonoInput({ id: null, amount: "" }); }} style={{ padding: "4px 10px", fontSize: "12px" }}>✕</button>
+                          </div>
+                        ) : (
+                          <button className="btn" onClick={function() { setAbonoInput({ id: ev.id, amount: "" }); }} style={{ marginLeft: "auto", padding: "4px 12px", fontSize: "12px" }}>+ Abonar</button>
+                        )
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
