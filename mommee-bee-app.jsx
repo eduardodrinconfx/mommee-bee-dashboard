@@ -180,6 +180,11 @@ export default function MommeeBeeApp(props) {
     updateDecTasks(decId, (dec.tasks || []).filter(function(t) { return t.id !== taskId; }));
   };
 
+  var deleteExpense = function(id) {
+    supabase.from("expenses").delete().eq("id", id).then(function() {});
+    setExpenses(function(ex) { return ex.filter(function(e) { return e.id !== id; }); });
+  };
+
   var addAbono = function(id, amount) {
     var amt = parseFloat(amount) || 0;
     if (amt <= 0) return;
@@ -743,7 +748,10 @@ export default function MommeeBeeApp(props) {
                             <div key={e.id} className="exp-row">
                               <span className="bdg bdg-or">{e.category}</span>
                               <div style={{ flex: 1, fontSize: "12px", color: "var(--muted)" }}>{e.desc}</div>
-                              <span className="mono" style={{ color: "var(--red)" }}>{"-$" + e.amount}</span>
+                              <span className="mono" style={{ color: "var(--red)", marginRight: "8px" }}>{"-$" + e.amount}</span>
+                              <button onClick={function() { deleteExpense(e.id); }} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", padding: "0", lineHeight: 1, flexShrink: 0 }} title="Eliminar">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "13px", height: "13px" }}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                              </button>
                             </div>
                           );
                         })}
@@ -783,7 +791,12 @@ export default function MommeeBeeApp(props) {
                                   <div style={{ flex: 1, fontSize: "12px", color: "var(--muted)" }}>{e.desc}</div>
                                   <div style={{ fontSize: "11px", color: "var(--muted)", marginRight: "8px" }}>{e.date}</div>
                                   {isFijo && <span style={{ fontSize: "9px", background: "#f0fdf4", color: "#16a34a", border: "1px solid #bbf7d0", borderRadius: "4px", padding: "1px 6px", marginRight: "6px", fontWeight: 600 }}>Fijo</span>}
-                                  <span className="mono" style={{ color: "var(--red)" }}>{"-$" + (e.amount || 0).toFixed(2)}</span>
+                                  <span className="mono" style={{ color: "var(--red)", marginRight: isFijo ? "0" : "8px" }}>{"-$" + (e.amount || 0).toFixed(2)}</span>
+                                  {!isFijo && (
+                                    <button onClick={function() { deleteExpense(e.id); }} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", padding: "0", lineHeight: 1, flexShrink: 0 }} title="Eliminar">
+                                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "13px", height: "13px" }}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                    </button>
+                                  )}
                                 </div>
                               );
                             })}
