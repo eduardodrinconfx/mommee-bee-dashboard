@@ -812,7 +812,7 @@ export default function MommeeBeeApp(props) {
         <div className="card">
           <div className="card-h">
             <div>
-              <div className="card-t">Pagos del Evento</div>
+              <div className="card-t">Pagos Pendientes</div>
               <div className="card-sub">{eventExpenses.length + " gastos \u00B7 $" + totalEventPending.toFixed(2) + " pendiente"}</div>
             </div>
             <button className="btn" onClick={function() { setShowEventForm(function(v) { return !v; }); }} style={{ padding: "6px 14px" }}>+ Agregar</button>
