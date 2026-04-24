@@ -35,7 +35,7 @@ export default function MommeeInventario(props) {
 
   function loadProducts() {
     setLoading(true);
-    supabase.from("products").select("*").order("category").order("name").then(function(res) {
+    supabase.from("products").select("*").order("name").then(function(res) {
       if (res.data) setProducts(res.data);
       setLoading(false);
     });
