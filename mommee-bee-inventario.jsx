@@ -103,7 +103,8 @@ export default function MommeeInventario(props) {
       supplier: editData.supplier,
       origin: editData.origin,
       status: editData.status,
-    }).eq("id", editingId).then(function(res) {
+    }).eq("id", editingId).select().then(function(res) {
+      console.log("saveEdit response:", res);
       if (!res.error) {
         setProducts(function(prev) {
           return prev.map(function(p) {
