@@ -103,7 +103,6 @@ export default function MommeeInventario(props) {
       supplier: editData.supplier,
       origin: editData.origin,
       status: editData.status,
-      updated_at: new Date().toISOString(),
     }).eq("id", editingId).then(function(res) {
       if (!res.error) {
         setProducts(function(prev) {
@@ -117,6 +116,10 @@ export default function MommeeInventario(props) {
         });
         setEditingId(null);
         setEditData({});
+        setMsg("Producto guardado correctamente.");
+        setTimeout(function() { setMsg(""); }, 3000);
+      } else {
+        setMsg("Error al guardar: " + res.error.message);
       }
       setSaving(false);
     });
@@ -232,14 +235,6 @@ export default function MommeeInventario(props) {
                 <option value="">All Status</option>
                 {STATUS_OPTIONS.map(function(s) { return <option key={s} value={s}>{s}</option>; })}
               </select>
-              {editingId && (
-                <div style={{ marginLeft: "auto", display: "flex", gap: "8px" }}>
-                  <button className="btn" onClick={function() { setEditingId(null); setEditData({}); }}>Cancel</button>
-                  <button className="btn btn-primary" onClick={saveEdit} disabled={saving}>
-                    {saving ? "Saving..." : "Save Changes"}
-                  </button>
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -429,7 +424,16 @@ export default function MommeeInventario(props) {
                           }
                         </td>
                         <td>
-                          {!isEditing && (
+                          {isEditing ? (
+                            <div style={{ display: "flex", gap: "6px" }}>
+                              <button className="btn btn-primary" onClick={saveEdit} disabled={saving} style={{ padding: "4px 10px", fontSize: "10px" }}>
+                                {saving ? "..." : "Save"}
+                              </button>
+                              <button className="btn" onClick={function() { setEditingId(null); setEditData({}); }} style={{ padding: "4px 10px", fontSize: "10px" }}>
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
                             <button className="btn" onClick={function() { startEdit(p); }} style={{ padding: "4px 10px", fontSize: "10px" }}>
                               Edit
                             </button>
