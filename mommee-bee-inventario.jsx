@@ -90,9 +90,9 @@ export default function MommeeInventario(props) {
   }
 
   function saveEdit() {
+    if (!editingId) return;
     setSaving(true);
     supabase.from("products").update({
-      code: editData.code,
       name: editData.name,
       category: editData.category,
       cost: parseFloat(editData.cost) || 0,
@@ -100,28 +100,30 @@ export default function MommeeInventario(props) {
       price_mayor: parseFloat(editData.price_mayor) || 0,
       stock: parseInt(editData.stock) || 0,
       min_stock: parseInt(editData.min_stock) || 0,
-      supplier: editData.supplier,
-      origin: editData.origin,
+      supplier: editData.supplier || null,
+      origin: editData.origin || null,
       status: editData.status,
     }).eq("id", editingId).select().then(function(res) {
-      console.log("saveEdit response:", res);
-      if (!res.error) {
-        setProducts(function(prev) {
-          return prev.map(function(p) {
-            if (p.id === editingId) {
-              var n = {}; for (var k in p) n[k] = p[k]; for (var k in editData) n[k] = editData[k];
-              return n;
-            }
-            return p;
-          });
-        });
-        setEditingId(null);
-        setEditData({});
-        setMsg("Producto guardado correctamente.");
-        setTimeout(function() { setMsg(""); }, 3000);
-      } else {
+      if (res.error) {
         setMsg("Error al guardar: " + res.error.message);
+        setSaving(false);
+        return;
       }
+      if (!res.data || res.data.length === 0) {
+        setMsg("Error: no se encontró el producto en la base de datos.");
+        setSaving(false);
+        return;
+      }
+      var updated = res.data[0];
+      setProducts(function(prev) {
+        return prev.map(function(p) {
+          return p.id === editingId ? updated : p;
+        });
+      });
+      setEditingId(null);
+      setEditData({});
+      setMsg("Producto guardado correctamente.");
+      setTimeout(function() { setMsg(""); }, 3000);
       setSaving(false);
     });
   }
