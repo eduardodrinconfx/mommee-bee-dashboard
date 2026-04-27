@@ -30,6 +30,7 @@ export default function MommeeInventario(props) {
   var newProdState = useState(EMPTY_PRODUCT); var newProd = newProdState[0];    var setNewProd = newProdState[1];
   var savingState = useState(false);     var saving = savingState[0];          var setSaving = savingState[1];
   var msgState = useState("");           var msg = msgState[0];                var setMsg = msgState[1];
+  var confirmDelState = useState(false); var confirmDel = confirmDelState[0];  var setConfirmDel = confirmDelState[1];
 
   useEffect(function() { loadProducts(); }, []);
 
@@ -65,6 +66,7 @@ export default function MommeeInventario(props) {
 
   function startEdit(p) {
     setEditingId(p.id);
+    setConfirmDel(false);
     var copy = {}; for (var k in p) copy[k] = p[k];
     setEditData(copy);
   }
@@ -123,6 +125,25 @@ export default function MommeeInventario(props) {
       setEditingId(null);
       setEditData({});
       setMsg("Producto guardado correctamente.");
+      setTimeout(function() { setMsg(""); }, 3000);
+      setSaving(false);
+    });
+  }
+
+  function deleteProduct() {
+    if (!editingId) return;
+    setSaving(true);
+    supabase.from("products").delete().eq("id", editingId).then(function(res) {
+      if (res.error) {
+        setMsg("Error al eliminar: " + res.error.message);
+        setSaving(false);
+        return;
+      }
+      setProducts(function(prev) { return prev.filter(function(p) { return p.id !== editingId; }); });
+      setEditingId(null);
+      setEditData({});
+      setConfirmDel(false);
+      setMsg("Producto eliminado.");
       setTimeout(function() { setMsg(""); }, 3000);
       setSaving(false);
     });
@@ -428,13 +449,30 @@ export default function MommeeInventario(props) {
                         </td>
                         <td>
                           {isEditing ? (
-                            <div style={{ display: "flex", gap: "6px" }}>
-                              <button className="btn btn-primary" onClick={saveEdit} disabled={saving} style={{ padding: "4px 10px", fontSize: "10px" }}>
-                                {saving ? "..." : "Save"}
-                              </button>
-                              <button className="btn" onClick={function() { setEditingId(null); setEditData({}); }} style={{ padding: "4px 10px", fontSize: "10px" }}>
-                                Cancel
-                              </button>
+                            <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                              {confirmDel ? (
+                                <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                                  <span style={{ fontSize: "10px", color: "var(--red)", fontWeight: 600, whiteSpace: "nowrap" }}>Eliminar?</span>
+                                  <button className="btn" onClick={deleteProduct} disabled={saving} style={{ padding: "4px 10px", fontSize: "10px", background: "var(--red)", color: "#fff", borderColor: "var(--red)" }}>
+                                    {saving ? "..." : "Si"}
+                                  </button>
+                                  <button className="btn" onClick={function() { setConfirmDel(false); }} style={{ padding: "4px 10px", fontSize: "10px" }}>
+                                    No
+                                  </button>
+                                </div>
+                              ) : (
+                                <div style={{ display: "flex", gap: "6px" }}>
+                                  <button className="btn btn-primary" onClick={saveEdit} disabled={saving} style={{ padding: "4px 10px", fontSize: "10px" }}>
+                                    {saving ? "..." : "Save"}
+                                  </button>
+                                  <button className="btn" onClick={function() { setEditingId(null); setEditData({}); setConfirmDel(false); }} style={{ padding: "4px 10px", fontSize: "10px" }}>
+                                    Cancel
+                                  </button>
+                                  <button className="btn" onClick={function() { setConfirmDel(true); }} style={{ padding: "4px 10px", fontSize: "10px", color: "var(--red)", borderColor: "var(--red)" }}>
+                                    Delete
+                                  </button>
+                                </div>
+                              )}
                             </div>
                           ) : (
                             <button className="btn" onClick={function() { startEdit(p); }} style={{ padding: "4px 10px", fontSize: "10px" }}>
