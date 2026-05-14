@@ -44,6 +44,7 @@ export default function MommeeReportes(props) {
   var siState = useState([]);           var saleItems = siState[0];          var setSaleItems = siState[1];
   var expState = useState([]);          var expenses = expState[0];          var setExpenses = expState[1];
   var prodState = useState([]);         var products = prodState[0];         var setProducts = prodState[1];
+  var sponsorsState = useState([]);     var sponsors = sponsorsState[0];     var setSponsors = sponsorsState[1];
   var loadingState = useState(true);    var loading = loadingState[0];       var setLoading = loadingState[1];
 
   var year = new Date().getFullYear();
@@ -67,11 +68,13 @@ export default function MommeeReportes(props) {
       supabase.from("sale_items").select("*"),
       supabase.from("expenses").select("*").gte("date", yearStart),
       supabase.from("products").select("id,cost"),
+      supabase.from("sponsors").select("*").gte("date", yearStart).order("date"),
     ]).then(function(results) {
       if (results[0].data) setSales(results[0].data);
       if (results[1].data) setSaleItems(results[1].data);
       if (results[2].data) setExpenses(results[2].data);
       if (results[3].data) setProducts(results[3].data);
+      if (results[4].data) setSponsors(results[4].data);
       setLoading(false);
     });
   }
@@ -85,6 +88,7 @@ export default function MommeeReportes(props) {
   });
 
   var filteredExpenses = expenses.filter(function(e) { return e.date >= dateFrom && e.date <= dateTo; });
+  var filteredSponsors = sponsors.filter(function(s) { return s.date >= dateFrom && s.date <= dateTo; });
 
   // Product cost map
   var costMap = {};
@@ -99,7 +103,9 @@ export default function MommeeReportes(props) {
     var mCOGS = mItems.reduce(function(sum, si) { return sum + si.quantity * (costMap[si.product_id] || 0); }, 0);
     var mExp = filteredExpenses.filter(function(e) { var d = new Date(e.date); return d.getMonth() === idx && d.getFullYear() === year; });
     var mOPEX = mExp.reduce(function(sum, e) { return sum + (parseFloat(e.amount_usd) || 0); }, 0);
-    return { month: m, sales: mGross, profit: mGross - mCOGS - mOPEX, cogs: mCOGS, opex: mOPEX, txns: mSales.length };
+    var mSpon = filteredSponsors.filter(function(s) { var d = new Date(s.date); return d.getMonth() === idx && d.getFullYear() === year; });
+    var mSponsors = mSpon.reduce(function(sum, s) { return sum + (parseFloat(s.amount_usd) || 0); }, 0);
+    return { month: m, sales: mGross, profit: mGross - mCOGS - mOPEX + mSponsors, cogs: mCOGS, opex: mOPEX, sponsors: mSponsors, txns: mSales.length };
   });
 
   // Platform distribution
@@ -126,7 +132,8 @@ export default function MommeeReportes(props) {
   var periodItems = saleItems.filter(function(si) { return filteredSaleIds.has(si.sale_id); });
   var totalCOGS = periodItems.reduce(function(sum, si) { return sum + si.quantity * (costMap[si.product_id] || 0); }, 0);
   var totalOPEX = filteredExpenses.reduce(function(sum, e) { return sum + (parseFloat(e.amount_usd) || 0); }, 0);
-  var totalProfit = totalSales - totalCOGS - totalOPEX;
+  var totalSponsors = filteredSponsors.reduce(function(sum, s) { return sum + (parseFloat(s.amount_usd) || 0); }, 0);
+  var totalProfit = totalSales - totalCOGS - totalOPEX + totalSponsors;
   var avgTicket = filteredSales.length > 0 ? totalSales / filteredSales.length : 0;
   var margin = totalSales > 0 ? ((totalProfit / totalSales) * 100) : 0;
 
@@ -200,7 +207,7 @@ export default function MommeeReportes(props) {
               icon: function() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>; } },
             { label: "COGS", val: "$" + totalCOGS.toFixed(0), sub: "Cost of goods", red: true,
               icon: function() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>; } },
-            { label: "OPEX", val: "$" + totalOPEX.toFixed(0), sub: "Expenses", orange: true,
+            { label: "OPEX", val: "$" + totalOPEX.toFixed(0), sub: totalSponsors > 0 ? "Sponsors: +$" + totalSponsors.toFixed(0) : "Expenses", orange: true,
               icon: function() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>; } },
             { label: "Net Profit", val: "$" + totalProfit.toFixed(0), sub: "Margin: " + margin.toFixed(1) + "%", green: totalProfit >= 0, red2: totalProfit < 0,
               icon: function() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>; } },
@@ -350,6 +357,7 @@ export default function MommeeReportes(props) {
                     <th style={{ textAlign: "right" }}>Gross Profit</th>
                     <th style={{ textAlign: "right" }}>Margin</th>
                     <th style={{ textAlign: "right" }}>OPEX</th>
+                    <th style={{ textAlign: "right" }}>Sponsors</th>
                     <th style={{ textAlign: "right" }}>Net Profit</th>
                     <th style={{ textAlign: "right" }}>Net %</th>
                     <th style={{ textAlign: "right" }}>Txns</th>
@@ -370,6 +378,7 @@ export default function MommeeReportes(props) {
                           <span className={"bdg " + (grossMargin >= 40 ? "bdg-gn" : grossMargin >= 20 ? "bdg-or" : "bdg-rd")}>{grossMargin.toFixed(1) + "%"}</span>
                         </td>
                         <td className="mono" style={{ textAlign: "right", fontSize: "11px", color: "var(--orange)" }}>{"$" + m.opex.toFixed(2)}</td>
+                        <td className="mono" style={{ textAlign: "right", fontSize: "11px", color: m.sponsors > 0 ? "var(--green)" : "var(--muted)" }}>{m.sponsors > 0 ? "+$" + m.sponsors.toFixed(2) : "—"}</td>
                         <td className="mono" style={{ textAlign: "right", fontSize: "11px", fontWeight: 600, color: m.profit >= 0 ? "var(--green)" : "var(--red)" }}>{"$" + m.profit.toFixed(2)}</td>
                         <td style={{ textAlign: "right" }}>
                           <span className={"bdg " + (netMargin >= 15 ? "bdg-gn" : netMargin >= 5 ? "bdg-or" : "bdg-rd")}>{netMargin.toFixed(1) + "%"}</span>
@@ -387,6 +396,7 @@ export default function MommeeReportes(props) {
                     <td className="mono" style={{ textAlign: "right", fontWeight: 600, fontSize: "11px" }}>{"$" + monthlyData.reduce(function(s, m) { return s + m.sales - m.cogs; }, 0).toFixed(2)}</td>
                     <td style={{ textAlign: "right", color: "var(--muted)" }}>—</td>
                     <td className="mono" style={{ textAlign: "right", fontWeight: 600, fontSize: "11px", color: "var(--orange)" }}>{"$" + monthlyData.reduce(function(s, m) { return s + m.opex; }, 0).toFixed(2)}</td>
+                    <td className="mono" style={{ textAlign: "right", fontWeight: 600, fontSize: "11px", color: "var(--green)" }}>{totalSponsors > 0 ? "+$" + totalSponsors.toFixed(2) : "—"}</td>
                     <td className="mono" style={{ textAlign: "right", fontWeight: 600, fontSize: "11px", color: totalProfit >= 0 ? "var(--green)" : "var(--red)" }}>{"$" + monthlyData.reduce(function(s, m) { return s + m.profit; }, 0).toFixed(2)}</td>
                     <td style={{ textAlign: "right", color: "var(--muted)" }}>—</td>
                     <td className="mono" style={{ textAlign: "right", fontWeight: 600, fontSize: "11px", color: "var(--blue)" }}>{filteredSales.length}</td>
@@ -402,6 +412,7 @@ export default function MommeeReportes(props) {
           <div className="summary-item"><div className="summary-label">Revenue</div><div className="summary-value">{"$" + totalSales.toFixed(0)}</div></div>
           <div className="summary-item"><div className="summary-label">COGS</div><div className="summary-value">{"$" + totalCOGS.toFixed(0)}</div></div>
           <div className="summary-item"><div className="summary-label">OPEX</div><div className="summary-value">{"$" + totalOPEX.toFixed(0)}</div></div>
+          {totalSponsors > 0 && <div className="summary-item"><div className="summary-label">Sponsors</div><div className="summary-value" style={{ color: "var(--green)" }}>{"+$" + totalSponsors.toFixed(0)}</div></div>}
           <div className="summary-spacer" />
           <div className="summary-item"><div className="summary-label">Net Profit</div><div className="summary-value accent">{"$" + totalProfit.toFixed(0)}</div></div>
         </div>
