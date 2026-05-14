@@ -38,6 +38,9 @@ export default function MommeeBeeApp(props) {
   var abonoState = useState({ id: null, amount: "" }); var abonoInput = abonoState[0]; var setAbonoInput = abonoState[1];
   var showEventFormState = useState(false); var showEventForm = showEventFormState[0]; var setShowEventForm = showEventFormState[1];
   var eventFormState = useState({ description: "", total_amount: "" }); var eventForm = eventFormState[0]; var setEventForm = eventFormState[1];
+  var sponsorsState = useState([]); var sponsors = sponsorsState[0]; var setSponsors = sponsorsState[1];
+  var showSponsorFormState = useState(false); var showSponsorForm = showSponsorFormState[0]; var setShowSponsorForm = showSponsorFormState[1];
+  var sponsorFormState = useState({ name: "", amount: "" }); var sponsorForm = sponsorFormState[0]; var setSponsorForm = sponsorFormState[1];
 
   useEffect(function() { loadData(); }, [refreshKey]);
 
@@ -55,6 +58,7 @@ export default function MommeeBeeApp(props) {
       supabase.from("recurring_expenses").select("*").eq("active", true).order("category"),
       supabase.from("decisions").select("*").order("position", { ascending: true }),
       supabase.from("event_expenses").select("*").order("created_at", { ascending: true }),
+      supabase.from("sponsors").select("*").order("created_at", { ascending: false }),
     ]).then(function(results) {
       if (results[0].data) setSales(results[0].data);
       if (results[1].data) setSaleItems(results[1].data);
@@ -63,6 +67,7 @@ export default function MommeeBeeApp(props) {
       if (results[5].data) setProducts(results[5].data);
       if (results[7].data) setDecisions(results[7].data.map(function(d) { return { id: d.id, text: d.text, priority: d.priority, status: d.status, date: d.date, tasks: d.tasks || [] }; }));
       if (results[8].data) setEventExpenses(results[8].data);
+      if (results[9].data) setSponsors(results[9].data);
 
       var allExpenses = results[3].data || [];
       var recurring = results[6].data || [];
@@ -215,6 +220,21 @@ export default function MommeeBeeApp(props) {
     setEventExpenses(function(evs) { return evs.filter(function(e) { return e.id !== id; }); });
   };
 
+  var addSponsor = function() {
+    if (!sponsorForm.name.trim() || !parseFloat(sponsorForm.amount)) return;
+    var row = { name: sponsorForm.name.trim(), amount_usd: parseFloat(sponsorForm.amount), date: new Date().toISOString().split("T")[0] };
+    supabase.from("sponsors").insert(row).select().single().then(function(res) {
+      if (res.data) setSponsors(function(sp) { return [res.data].concat(sp); });
+    });
+    setSponsorForm({ name: "", amount: "" });
+    setShowSponsorForm(false);
+  };
+
+  var deleteSponsor = function(id) {
+    supabase.from("sponsors").delete().eq("id", id).then(function() {});
+    setSponsors(function(sp) { return sp.filter(function(s) { return s.id !== id; }); });
+  };
+
   var getDecProgress = function(dec) {
     var tasks = dec.tasks || [];
     if (tasks.length === 0) return -1;
@@ -293,7 +313,7 @@ export default function MommeeBeeApp(props) {
 
   // P&L
   var grossProfit = monthSalesTotal - monthCogs;
-  var netProfit = grossProfit - totalOpex;
+  var netProfit = grossProfit - totalOpex + totalSponsors;
   var grossMargin = monthSalesTotal > 0 ? ((grossProfit / monthSalesTotal) * 100).toFixed(1) : "0";
   var netMargin = monthSalesTotal > 0 ? ((netProfit / monthSalesTotal) * 100).toFixed(1) : "0";
 
@@ -332,6 +352,10 @@ export default function MommeeBeeApp(props) {
   var totalEventAmount = eventExpenses.reduce(function(s, e) { return s + (parseFloat(e.total_amount) || 0); }, 0);
   var totalEventPaid = eventExpenses.reduce(function(s, e) { return s + (parseFloat(e.paid_amount) || 0); }, 0);
   var totalEventPending = totalEventAmount - totalEventPaid;
+
+  // Sponsors (current month)
+  var monthSponsors = sponsors.filter(function(s) { return s.date && s.date.startsWith(monthPrefix); });
+  var totalSponsors = monthSponsors.reduce(function(s, sp) { return s + (parseFloat(sp.amount_usd) || 0); }, 0);
 
   // Sparkline bars helper
   var sparkBars = function(data) {
@@ -486,6 +510,7 @@ export default function MommeeBeeApp(props) {
                   <tr><td style={{ paddingLeft: "16px" }}>(-) COGS</td><td style={{ color: "var(--red)" }}>{"-$" + monthCogs.toLocaleString()}</td></tr>
                   <tr className="total"><td>{"= Gross Profit "}<span className="bdg bdg-gn" style={{ marginLeft: "8px" }}>{grossMargin + "%"}</span></td><td style={{ color: "var(--green)" }}>{"$" + grossProfit.toLocaleString()}</td></tr>
                   <tr><td style={{ paddingLeft: "16px" }}>(-) Operating Expenses</td><td style={{ color: "var(--red)" }}>{"-$" + totalOpex.toLocaleString()}</td></tr>
+                  {totalSponsors > 0 && <tr><td style={{ paddingLeft: "16px" }}>(+) Sponsor Income</td><td style={{ color: "var(--green)" }}>{"+$" + totalSponsors.toLocaleString()}</td></tr>}
                   <tr className="total"><td>{"= Net Profit "}<span className={netProfit >= 0 ? "bdg bdg-gn" : "bdg bdg-rd"} style={{ marginLeft: "8px" }}>{netMargin + "%"}</span></td><td style={{ color: netProfit >= 0 ? "var(--green)" : "var(--red)" }}>{"$" + netProfit.toLocaleString()}</td></tr>
                 </tbody>
               </table>
@@ -821,7 +846,8 @@ export default function MommeeBeeApp(props) {
           </div>
         </div>
 
-        {/* ROW 6b: Pagos de Evento */}
+        {/* ROW 6b: Pagos Pendientes + Sponsors */}
+        <div className="g2">
         <div className="card">
           <div className="card-h">
             <div>
@@ -912,6 +938,68 @@ export default function MommeeBeeApp(props) {
               })}
             </div>
           </div>
+        </div>
+
+        <div className="card">
+          <div className="card-h">
+            <div>
+              <div className="card-t">Pago de Sponsors</div>
+              <div className="card-sub">{monthSponsors.length + " sponsors · $" + totalSponsors.toFixed(2) + " recibido"}</div>
+            </div>
+            <button className="btn" onClick={function() { setShowSponsorForm(function(v) { return !v; }); }} style={{ padding: "6px 14px" }}>+ Agregar</button>
+          </div>
+          <div className="card-b">
+            <div className="summary-bar" style={{ marginBottom: "16px" }}>
+              <div className="summary-item"><div className="summary-label">Recibido</div><div className="summary-value" style={{ color: "var(--green)" }}>{"$" + totalSponsors.toFixed(2)}</div></div>
+              <div className="summary-spacer" />
+              <div className="summary-item"><div className="summary-label">Sponsors</div><div className="summary-value">{String(monthSponsors.length)}</div></div>
+            </div>
+
+            {showSponsorForm && (
+              <div style={{ background: "var(--accent-light)", border: "1px solid var(--accent)", borderRadius: "var(--rs)", padding: "14px", marginBottom: "14px", animation: "slideIn 0.2s ease" }}>
+                <div className="form-row">
+                  <div className="form-group" style={{ gridColumn: "span 2" }}>
+                    <label className="form-label">Nombre del Sponsor</label>
+                    <input className="form-input" value={sponsorForm.name} onChange={function(e) { setSponsorForm({ name: e.target.value, amount: sponsorForm.amount }); }} placeholder="Ej: Marca ABC" onKeyDown={function(e) { if (e.key === "Enter") addSponsor(); }} autoFocus />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Monto ($)</label>
+                    <input className="form-input" type="text" inputMode="decimal" value={sponsorForm.amount} onChange={function(e) { setSponsorForm({ name: sponsorForm.name, amount: e.target.value }); }} placeholder="0.00" onKeyDown={function(e) { if (e.key === "Enter") addSponsor(); }} />
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
+                  <button className="btn btn-primary" onClick={addSponsor}>Guardar</button>
+                  <button className="btn" onClick={function() { setShowSponsorForm(false); }}>Cancelar</button>
+                </div>
+              </div>
+            )}
+
+            {monthSponsors.length === 0 && (
+              <div style={{ textAlign: "center", padding: "32px 0", color: "var(--muted)" }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: "32px", height: "32px", margin: "0 auto 8px", display: "block", opacity: 0.3 }}>
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                </svg>
+                No hay sponsors este mes. Agrega el primero.
+              </div>
+            )}
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              {monthSponsors.map(function(sp) {
+                return (
+                  <div key={sp.id} style={{ padding: "12px 14px", background: "#f0fdf4", border: "1px solid #86efac", borderRadius: "var(--rs)" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                      <div style={{ flex: 1, fontSize: "13px", fontWeight: 600, color: "var(--text)" }}>{sp.name}</div>
+                      <div style={{ fontSize: "13px", fontWeight: 700, color: "#16a34a" }}>{"$" + (parseFloat(sp.amount_usd) || 0).toFixed(2)}</div>
+                      <button onClick={function() { deleteSponsor(sp.id); }} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", padding: "0", lineHeight: 1 }}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "13px", height: "13px" }}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
         </div>
 
         {/* ROW 7: Proximas Decisiones */}

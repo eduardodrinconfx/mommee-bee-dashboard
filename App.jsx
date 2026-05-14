@@ -73,6 +73,14 @@ export default function App() {
   var clientsState = useState([]);
   var clients = clientsState[0];
   var setClients = clientsState[1];
+  var mobOpenState = useState(false);
+  var mobOpen = mobOpenState[0];
+  var setMobOpen = mobOpenState[1];
+
+  var handleNavClick = function(key) {
+    setActiveModule(key);
+    setMobOpen(false);
+  };
 
   var renderModule = function() {
     var props = { onNavigate: setActiveModule, activeModule: activeModule, clients: clients, setClients: setClients };
@@ -104,9 +112,19 @@ export default function App() {
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "var(--bg)" }}>
 
+      {/* HAMBURGER */}
+      <button className="mob-btn" onClick={function() { setMobOpen(true); }} aria-label="Menu">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+      </button>
+
+      {/* OVERLAY (mobile only, when sidebar open) */}
+      {mobOpen && <div className="mob-overlay" onClick={function() { setMobOpen(false); }} />}
+
       {/* SIDEBAR */}
       <aside
-        className="sidebar-animate"
+        className={"sidebar-animate mob-sidebar" + (mobOpen ? " sb-open" : "")}
         style={{
           width: "240px", minWidth: "240px",
           background: "linear-gradient(180deg, #1d1d1f 0%, #161617 100%)",
