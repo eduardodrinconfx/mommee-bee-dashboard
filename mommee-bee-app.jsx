@@ -465,7 +465,7 @@ export default function MommeeBeeApp(props) {
               icon: function() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>; } },
             { label: "Clientes", val: String(clients.length), change: "+" + clients.length, up: true,
               icon: function() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>; } },
-            { label: "Gastos Mes", val: "$" + totalOpex.toFixed(0), change: "-$" + totalOpex.toFixed(0), up: false,
+            { label: "Gastos Netos", val: "$" + Math.max(0, totalOpex - totalSponsors).toFixed(0), change: totalSponsors > 0 ? "-$" + totalSponsors.toFixed(0) + " sponsors" : "-$" + totalOpex.toFixed(0), up: totalSponsors > 0,
               icon: function() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>; } },
           ].map(function(kpi) {
             var bars = sparkBars(spark12(6, 12));
@@ -839,8 +839,9 @@ export default function MommeeBeeApp(props) {
                 ) : (
                   <div className="summary-item"><div className="summary-label">Total Expenses</div><div className="summary-value" style={{ color: "var(--red)" }}>{"-$" + totalOpex.toFixed(2)}</div></div>
                 )}
+                {!showAllExp && totalSponsors > 0 && <div className="summary-item"><div className="summary-label">Sponsors</div><div className="summary-value" style={{ color: "var(--green)" }}>{"+$" + totalSponsors.toFixed(2)}</div></div>}
                 <div className="summary-spacer" />
-                {!showAllExp && <div className="summary-item"><div className="summary-label">Fijos</div><div className="summary-value" style={{ color: "var(--red)" }}>{"-$" + recurringTotal.toFixed(2)}</div></div>}
+                {!showAllExp && <div className="summary-item"><div className="summary-label">Neto</div><div className="summary-value" style={{ color: Math.max(0, totalOpex - totalSponsors) === 0 ? "var(--green)" : "var(--red)" }}>{"-$" + Math.max(0, totalOpex - totalSponsors).toFixed(2)}</div></div>}
               </div>
             </div>
           </div>
