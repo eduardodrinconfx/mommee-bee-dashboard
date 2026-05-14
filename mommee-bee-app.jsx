@@ -311,6 +311,10 @@ export default function MommeeBeeApp(props) {
   var recurringTotal = fixedExpenses.reduce(function(s, e) { return s + (e.amount || 0); }, 0);
   var totalOpex = monthExpenses.reduce(function(s, e) { return s + (e.amount || 0); }, 0);
 
+  // Sponsors (current month) — must be before P&L
+  var monthSponsors = sponsors.filter(function(s) { return s.date && s.date.startsWith(monthPrefix); });
+  var totalSponsors = monthSponsors.reduce(function(s, sp) { return s + (parseFloat(sp.amount_usd) || 0); }, 0);
+
   // P&L
   var grossProfit = monthSalesTotal - monthCogs;
   var netProfit = grossProfit - totalOpex + totalSponsors;
@@ -352,10 +356,6 @@ export default function MommeeBeeApp(props) {
   var totalEventAmount = eventExpenses.reduce(function(s, e) { return s + (parseFloat(e.total_amount) || 0); }, 0);
   var totalEventPaid = eventExpenses.reduce(function(s, e) { return s + (parseFloat(e.paid_amount) || 0); }, 0);
   var totalEventPending = totalEventAmount - totalEventPaid;
-
-  // Sponsors (current month)
-  var monthSponsors = sponsors.filter(function(s) { return s.date && s.date.startsWith(monthPrefix); });
-  var totalSponsors = monthSponsors.reduce(function(s, sp) { return s + (parseFloat(sp.amount_usd) || 0); }, 0);
 
   // Sparkline bars helper
   var sparkBars = function(data) {
