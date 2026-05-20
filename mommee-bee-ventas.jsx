@@ -62,6 +62,7 @@ export default function MommeeVentas(props) {
   var editSaleState = useState(null);   var editingSale = editSaleState[0];  var setEditingSale = editSaleState[1];
   var editFormState = useState({});     var editForm = editFormState[0];     var setEditForm = editFormState[1];
   var editSavingState = useState(false); var editSaving = editSavingState[0]; var setEditSaving = editSavingState[1];
+  var expandedState = useState(null);   var expandedSaleId = expandedState[0]; var setExpandedSaleId = expandedState[1];
 
   useEffect(function() { loadData(); }, []);
 
@@ -773,8 +774,10 @@ export default function MommeeVentas(props) {
                       {filteredSales.map(function(s) {
                         var statusClass = s.payment_status === "Paid" ? "bdg-gn" : s.payment_status === "Pending" ? "bdg-rd" : "bdg-or";
                         var typeClass = s.sale_type === "Wholesale" ? "bdg-bl" : "bdg-or";
-                        return (
-                          <tr key={s.id}>
+                        var items = saleItems.filter(function(i) { return i.sale_id === s.id; });
+                        var isExpanded = expandedSaleId === s.id;
+                        return [
+                          <tr key={s.id} style={{ cursor: items.length > 0 ? "pointer" : "default" }} onClick={function() { setExpandedSaleId(isExpanded ? null : s.id); }}>
                             <td className="mono" style={{ color: "var(--muted)", fontSize: "11px" }}>{"#" + s.id}</td>
                             <td style={{ whiteSpace: "nowrap" }}>{s.date}</td>
                             <td style={{ fontWeight: 500 }}>{s.customer_name || "—"}</td>
@@ -787,23 +790,61 @@ export default function MommeeVentas(props) {
                             <td className="mono" style={{ textAlign: "right", color: "var(--red)" }}>{parseFloat(s.shipping) > 0 ? "$" + parseFloat(s.shipping).toFixed(2) : "—"}</td>
                             <td className="mono" style={{ textAlign: "right", fontWeight: 600 }}>{"$" + (parseFloat(s.total_usd) || 0).toFixed(2)}</td>
                             <td style={{ textAlign: "center" }}>
-                              <button
-                                onClick={function() { openEdit(s); }}
-                                title="Editar venta"
-                                style={{
-                                  background: "none", border: "1px solid var(--border)", borderRadius: "var(--rs)",
-                                  cursor: "pointer", padding: "3px 8px", color: "var(--accent)",
-                                  fontSize: "12px", lineHeight: 1,
-                                }}
-                              >
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "12px", height: "12px", verticalAlign: "middle" }}>
-                                  <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
-                                  <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                                </svg>
-                              </button>
+                              <div style={{ display: "flex", gap: "6px", justifyContent: "center", alignItems: "center" }}>
+                                {items.length > 0 && (
+                                  <span
+                                    title="Ver productos"
+                                    style={{
+                                      fontFamily: "var(--mono)", fontSize: "10px", padding: "2px 6px",
+                                      borderRadius: "var(--rs)", background: isExpanded ? "var(--accent)" : "rgba(179,106,35,.1)",
+                                      color: isExpanded ? "#fff" : "var(--accent)", fontWeight: 600,
+                                    }}
+                                  >
+                                    {items.length + "p"}
+                                  </span>
+                                )}
+                                <button
+                                  onClick={function(e) { e.stopPropagation(); openEdit(s); }}
+                                  title="Editar venta"
+                                  style={{
+                                    background: "none", border: "1px solid var(--border)", borderRadius: "var(--rs)",
+                                    cursor: "pointer", padding: "3px 8px", color: "var(--accent)",
+                                    fontSize: "12px", lineHeight: 1,
+                                  }}
+                                >
+                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "12px", height: "12px", verticalAlign: "middle" }}>
+                                    <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+                                    <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                  </svg>
+                                </button>
+                              </div>
                             </td>
-                          </tr>
-                        );
+                          </tr>,
+                          isExpanded && items.length > 0 && (
+                            <tr key={s.id + "-items"}>
+                              <td colSpan={12} style={{ padding: "0", background: "rgba(179,106,35,.04)", borderBottom: "2px solid rgba(179,106,35,.15)" }}>
+                                <div style={{ padding: "10px 22px 12px" }}>
+                                  <div style={{ fontFamily: "var(--mono)", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--accent)", marginBottom: "8px", fontWeight: 600 }}>
+                                    Productos vendidos
+                                  </div>
+                                  <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+                                    {items.map(function(item) {
+                                      return (
+                                        <div key={item.id} style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "13px" }}>
+                                          <span className="bdg bdg-or" style={{ fontSize: "10px", minWidth: "60px", textAlign: "center" }}>{item.product_code}</span>
+                                          <span style={{ flex: 1, fontWeight: 500, letterSpacing: "-0.01em" }}>{item.product_name}</span>
+                                          <span className="mono" style={{ color: "var(--muted)", fontSize: "12px" }}>{"x" + item.quantity}</span>
+                                          <span className="mono" style={{ color: "var(--muted)", fontSize: "12px" }}>{"@ $" + parseFloat(item.unit_price).toFixed(2)}</span>
+                                          <span className="mono" style={{ fontWeight: 600, color: "var(--dark)", minWidth: "70px", textAlign: "right" }}>{"$" + (item.quantity * parseFloat(item.unit_price)).toFixed(2)}</span>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          ),
+                        ];
                       })}
                     </tbody>
                   </table>
