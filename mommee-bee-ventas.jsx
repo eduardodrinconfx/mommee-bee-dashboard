@@ -63,6 +63,7 @@ export default function MommeeVentas(props) {
   var editFormState = useState({});     var editForm = editFormState[0];     var setEditForm = editFormState[1];
   var editSavingState = useState(false); var editSaving = editSavingState[0]; var setEditSaving = editSavingState[1];
   var expandedState = useState(null);   var expandedSaleId = expandedState[0]; var setExpandedSaleId = expandedState[1];
+  var confirmDelState = useState(null);  var confirmDelId = confirmDelState[0];  var setConfirmDelId = confirmDelState[1];
 
   useEffect(function() { loadData(); }, []);
 
@@ -300,6 +301,19 @@ export default function MommeeVentas(props) {
       setEditingSale(null);
       loadData();
       setTimeout(function() { setMsg(""); }, 3000);
+    });
+  }
+
+  function deleteSale(id) {
+    supabase.from("sale_items").delete().eq("sale_id", id).then(function() {
+      supabase.from("sales").delete().eq("id", id).then(function(res) {
+        if (res.error) { setMsg("Error al eliminar: " + res.error.message); return; }
+        setSales(function(prev) { return prev.filter(function(s) { return s.id !== id; }); });
+        setSaleItems(function(prev) { return prev.filter(function(i) { return i.sale_id !== id; }); });
+        setConfirmDelId(null);
+        setMsg("Venta eliminada.");
+        setTimeout(function() { setMsg(""); }, 3000);
+      });
     });
   }
 
@@ -803,20 +817,43 @@ export default function MommeeVentas(props) {
                                     {items.length + "p"}
                                   </span>
                                 )}
-                                <button
-                                  onClick={function(e) { e.stopPropagation(); openEdit(s); }}
-                                  title="Editar venta"
-                                  style={{
-                                    background: "none", border: "1px solid var(--border)", borderRadius: "var(--rs)",
-                                    cursor: "pointer", padding: "3px 8px", color: "var(--accent)",
-                                    fontSize: "12px", lineHeight: 1,
-                                  }}
-                                >
-                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "12px", height: "12px", verticalAlign: "middle" }}>
-                                    <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
-                                    <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                                  </svg>
-                                </button>
+                                {confirmDelId === s.id ? (
+                                  <div style={{ display: "flex", gap: "4px", alignItems: "center" }} onClick={function(e) { e.stopPropagation(); }}>
+                                    <span style={{ fontSize: "10px", color: "var(--red)", fontWeight: 600, whiteSpace: "nowrap" }}>¿Eliminar?</span>
+                                    <button className="btn" onClick={function(e) { e.stopPropagation(); deleteSale(s.id); }} style={{ padding: "3px 8px", fontSize: "10px", background: "var(--red)", color: "#fff", borderColor: "var(--red)" }}>Si</button>
+                                    <button className="btn" onClick={function(e) { e.stopPropagation(); setConfirmDelId(null); }} style={{ padding: "3px 8px", fontSize: "10px" }}>No</button>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <button
+                                      onClick={function(e) { e.stopPropagation(); openEdit(s); }}
+                                      title="Editar venta"
+                                      style={{
+                                        background: "none", border: "1px solid var(--border)", borderRadius: "var(--rs)",
+                                        cursor: "pointer", padding: "3px 8px", color: "var(--accent)",
+                                        fontSize: "12px", lineHeight: 1,
+                                      }}
+                                    >
+                                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "12px", height: "12px", verticalAlign: "middle" }}>
+                                        <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+                                        <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                      </svg>
+                                    </button>
+                                    <button
+                                      onClick={function(e) { e.stopPropagation(); setConfirmDelId(s.id); }}
+                                      title="Eliminar venta"
+                                      style={{
+                                        background: "none", border: "1px solid var(--border)", borderRadius: "var(--rs)",
+                                        cursor: "pointer", padding: "3px 8px", color: "var(--red)",
+                                        fontSize: "12px", lineHeight: 1,
+                                      }}
+                                    >
+                                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "12px", height: "12px", verticalAlign: "middle" }}>
+                                        <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+                                      </svg>
+                                    </button>
+                                  </>
+                                )}
                               </div>
                             </td>
                           </tr>,
