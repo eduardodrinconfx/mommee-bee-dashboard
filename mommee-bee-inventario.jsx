@@ -95,6 +95,7 @@ export default function MommeeInventario(props) {
     if (!editingId) return;
     setSaving(true);
     supabase.from("products").update({
+      code: editData.code,
       name: editData.name,
       category: editData.category,
       cost: parseFloat(editData.cost) || 0,
