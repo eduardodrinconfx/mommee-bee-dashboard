@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, Fragment } from "react";
 import { supabase } from "./src/supabaseClient.js";
 
 var MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -31,6 +31,9 @@ export default function MommeeInventario(props) {
   var savingState = useState(false);     var saving = savingState[0];          var setSaving = savingState[1];
   var msgState = useState("");           var msg = msgState[0];                var setMsg = msgState[1];
   var confirmDelState = useState(false); var confirmDel = confirmDelState[0];  var setConfirmDel = confirmDelState[1];
+  var expSizesState = useState({});      var expandedSizes = expSizesState[0];  var setExpandedSizes = expSizesState[1];
+  var sizeInputsState = useState({});    var sizeInputs = sizeInputsState[0];   var setSizeInputs = sizeInputsState[1];
+  var savSizesState = useState({});      var savingSizes = savSizesState[0];    var setSavingSizes = savSizesState[1];
 
   useEffect(function() { loadProducts(); }, []);
 
@@ -147,6 +150,57 @@ export default function MommeeInventario(props) {
       setMsg("Producto eliminado.");
       setTimeout(function() { setMsg(""); }, 3000);
       setSaving(false);
+    });
+  }
+
+  function toggleSizeExpand(p) {
+    var isOpen = expandedSizes[p.id];
+    if (!isOpen) {
+      setSizeInputs(function(si) {
+        if (si[p.id]) return si;
+        var m = {}; for (var k in si) m[k] = si[k];
+        var s = p.sizes || {};
+        m[p.id] = { S: s.S !== undefined ? s.S : 0, M: s.M !== undefined ? s.M : 0, L: s.L !== undefined ? s.L : 0 };
+        return m;
+      });
+    }
+    setExpandedSizes(function(prev) {
+      var n = {}; for (var k in prev) n[k] = prev[k];
+      if (n[p.id]) { delete n[p.id]; } else { n[p.id] = true; }
+      return n;
+    });
+  }
+
+  function setSizeInput(id, dim) {
+    return function(e) {
+      var val = e.target.value;
+      setSizeInputs(function(si) {
+        var m = {}; for (var k in si) m[k] = si[k];
+        var entry = {}; for (var k in (m[id] || {})) entry[k] = m[id][k];
+        entry[dim] = val;
+        m[id] = entry;
+        return m;
+      });
+    };
+  }
+
+  function saveSizes(p) {
+    var inputs = sizeInputs[p.id] || { S: 0, M: 0, L: 0 };
+    var s = parseInt(inputs.S) || 0;
+    var m = parseInt(inputs.M) || 0;
+    var l = parseInt(inputs.L) || 0;
+    var total = s + m + l;
+    var sizesData = { S: s, M: m, L: l };
+    setSavingSizes(function(prev) { var n = {}; for (var k in prev) n[k] = prev[k]; n[p.id] = true; return n; });
+    supabase.from("products").update({ sizes: sizesData, stock: total }).eq("id", p.id).select().then(function(res) {
+      setSavingSizes(function(prev) { var n = {}; for (var k in prev) n[k] = prev[k]; delete n[p.id]; return n; });
+      if (res.error) { setMsg("Error guardando tallas: " + res.error.message); return; }
+      if (res.data && res.data.length > 0) {
+        var updated = res.data[0];
+        setProducts(function(prev) { return prev.map(function(q) { return q.id === p.id ? updated : q; }); });
+      }
+      setMsg("Tallas guardadas correctamente.");
+      setTimeout(function() { setMsg(""); }, 3000);
     });
   }
 
@@ -372,8 +426,12 @@ export default function MommeeInventario(props) {
                   {filtered.map(function(p) {
                     var isCritical = p.stock <= p.min_stock && p.status === "Active";
                     var isEditing = editingId === p.id;
+                    var isExpanded = p.category === "Clothing" && expandedSizes[p.id];
+                    var sizInputs = sizeInputs[p.id] || { S: 0, M: 0, L: 0 };
+                    var sizeTotal = (parseInt(sizInputs.S) || 0) + (parseInt(sizInputs.M) || 0) + (parseInt(sizInputs.L) || 0);
                     return (
-                      <tr key={p.id} style={isCritical ? { background: "rgba(255,59,48,.03)" } : {}}>
+                      <Fragment key={p.id}>
+                      <tr style={isCritical ? { background: "rgba(255,59,48,.03)" } : {}}>
                         <td>
                           {isEditing
                             ? <input className="form-input" type="text" value={editData.code} onChange={setED("code")} style={{ padding: "5px 8px", width: "120px" }} />
@@ -397,7 +455,17 @@ export default function MommeeInventario(props) {
                         <td>
                           {isEditing
                             ? <input className="form-input" type="number" min="0" value={editData.stock} onChange={setED("stock")} style={{ padding: "5px 8px", width: "70px" }} />
-                            : <span style={isCritical ? { color: "var(--red)", fontWeight: 600 } : {}}>{p.stock}{isCritical ? " !" : ""}</span>
+                            : p.category === "Clothing"
+                              ? (
+                                <span onClick={function() { toggleSizeExpand(p); }} style={{ cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px", userSelect: "none" }}>
+                                  {p.sizes
+                                    ? <span style={{ fontFamily: "var(--mono)", fontSize: "10px", color: isCritical ? "var(--red)" : "var(--muted)", fontWeight: isCritical ? 600 : 400 }}>{"S:" + (p.sizes.S || 0) + " M:" + (p.sizes.M || 0) + " L:" + (p.sizes.L || 0)}</span>
+                                    : <span style={isCritical ? { color: "var(--red)", fontWeight: 600 } : {}}>{p.stock}{isCritical ? " !" : ""}</span>
+                                  }
+                                  <span style={{ fontSize: "8px", color: "var(--accent)" }}>{expandedSizes[p.id] ? "▲" : "▼"}</span>
+                                </span>
+                              )
+                              : <span style={isCritical ? { color: "var(--red)", fontWeight: 600 } : {}}>{p.stock}{isCritical ? " !" : ""}</span>
                           }
                         </td>
                         <td>
@@ -482,6 +550,40 @@ export default function MommeeInventario(props) {
                           )}
                         </td>
                       </tr>
+                      {isExpanded && (
+                        <tr style={{ background: "rgba(179,106,35,.04)", borderTop: "none" }}>
+                          <td colSpan={12} style={{ padding: "10px 22px" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
+                              <span style={{ fontFamily: "var(--mono)", fontSize: "10px", color: "var(--accent)", fontWeight: 700, letterSpacing: "0.05em" }}>TALLAS</span>
+                              {["S", "M", "L"].map(function(dim) {
+                                return (
+                                  <label key={dim} style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", fontWeight: 700, color: "var(--dark)", userSelect: "none" }}>
+                                    {dim}
+                                    <input
+                                      className="form-input"
+                                      type="number"
+                                      min="0"
+                                      value={sizInputs[dim]}
+                                      onChange={setSizeInput(p.id, dim)}
+                                      style={{ width: "60px", padding: "4px 8px" }}
+                                    />
+                                  </label>
+                                );
+                              })}
+                              <span style={{ fontFamily: "var(--mono)", fontSize: "11px", color: "var(--muted)" }}>{"Total: " + sizeTotal}</span>
+                              <button
+                                className="btn btn-primary"
+                                onClick={function() { saveSizes(p); }}
+                                disabled={savingSizes[p.id]}
+                                style={{ padding: "4px 14px", fontSize: "11px" }}
+                              >
+                                {savingSizes[p.id] ? "..." : "Save"}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                      </Fragment>
                     );
                   })}
                 </tbody>
