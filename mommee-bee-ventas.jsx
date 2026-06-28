@@ -167,15 +167,12 @@ export default function MommeeVentas(props) {
   var cartTotal = cart.reduce(function(sum, item) { return sum + item.quantity * item.unit_price; }, 0);
 
   useEffect(function() {
-    if (form.platform === "Shopify") {
-      var af = cartTotal > 0 ? (cartTotal * 0.029 + 0.30).toFixed(2) : "";
+    if (form.platform === "Shopify" || form.platform === "Amazon") {
+      var rate = form.platform === "Amazon" ? 0.15 : 0.029;
+      var af = cartTotal > 0 ? (cartTotal * rate + 0.30).toFixed(2) : "";
       setForm(function(f) { var n = {}; for (var k in f) n[k] = f[k]; n.fee = af; return n; });
-    } else if (form.platform === "Amazon") {
-      var af = cartTotal > 0 ? (cartTotal * 0.15 + 0.30).toFixed(2) : "";
-      setForm(function(f) { var n = {}; for (var k in f) n[k] = f[k]; n.fee = af; return n; });
-    } else {
-      setForm(function(f) { var n = {}; for (var k in f) n[k] = f[k]; n.fee = ""; return n; });
     }
+    // Other platforms: keep the manually typed fee (it's only reset when the platform changes)
   }, [form.platform, cartTotal]);
 
   function handleSubmit(e) {
@@ -305,9 +302,28 @@ export default function MommeeVentas(props) {
   }
 
   function deleteSale(id) {
+    var soldItems = saleItems.filter(function(i) { return i.sale_id === id; });
     supabase.from("sale_items").delete().eq("sale_id", id).then(function() {
       supabase.from("sales").delete().eq("id", id).then(function(res) {
         if (res.error) { setMsg("Error al eliminar: " + res.error.message); return; }
+        // Restore stock for each product that was sold
+        var stockUpdates = soldItems.map(function(item) {
+          var prod = products.find(function(p) { return p.id === item.product_id; });
+          if (prod) {
+            var newStock = (prod.stock || 0) + (item.quantity || 0);
+            return supabase.from("products").update({ stock: newStock, updated_at: new Date().toISOString() }).eq("id", item.product_id);
+          }
+          return Promise.resolve();
+        });
+        Promise.all(stockUpdates).then(function() {
+          setProducts(function(prev) {
+            return prev.map(function(p) {
+              var restored = soldItems.reduce(function(sum, i) { return i.product_id === p.id ? sum + (i.quantity || 0) : sum; }, 0);
+              if (restored === 0) return p;
+              var n = {}; for (var k in p) n[k] = p[k]; n.stock = (p.stock || 0) + restored; return n;
+            });
+          });
+        });
         setSales(function(prev) { return prev.filter(function(s) { return s.id !== id; }); });
         setSaleItems(function(prev) { return prev.filter(function(i) { return i.sale_id !== id; }); });
         setConfirmDelId(null);
@@ -415,7 +431,7 @@ export default function MommeeVentas(props) {
                     </div>
                     <div className="form-group">
                       <label className="form-label">Platform</label>
-                      <select className="form-input" value={form.platform} onChange={function(e) { setForm(function(f) { var n = {}; for (var k in f) n[k] = f[k]; n.platform = e.target.value; return n; }); }}>
+                      <select className="form-input" value={form.platform} onChange={function(e) { setForm(function(f) { var n = {}; for (var k in f) n[k] = f[k]; n.platform = e.target.value; n.fee = ""; return n; }); }}>
                         {PLATFORMS.map(function(p) { return <option key={p} value={p}>{p}</option>; })}
                       </select>
                     </div>

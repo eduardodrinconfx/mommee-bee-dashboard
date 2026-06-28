@@ -8,6 +8,8 @@ var PLAT_COLORS = ["var(--accent)","var(--blue)","var(--green)","#ff9500","var(-
 
 function fmtK(v) { return v >= 1000 ? "$" + (v / 1000).toFixed(1) + "k" : "$" + v.toFixed(0); }
 function fmtD(v) { return "$" + v.toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+// Parse 0-based month directly from "YYYY-MM-DD" to avoid UTC timezone shifts at month boundaries
+function monthOf(dateStr) { return dateStr ? parseInt(String(dateStr).substring(5, 7), 10) - 1 : -1; }
 
 export default function MommeeBeeApp(props) {
   var onNavigate = props.onNavigate || function() {};
@@ -41,6 +43,9 @@ export default function MommeeBeeApp(props) {
   var sponsorsState = useState([]); var sponsors = sponsorsState[0]; var setSponsors = sponsorsState[1];
   var showSponsorFormState = useState(false); var showSponsorForm = showSponsorFormState[0]; var setShowSponsorForm = showSponsorFormState[1];
   var sponsorFormState = useState({ name: "", amount: "" }); var sponsorForm = sponsorFormState[0]; var setSponsorForm = sponsorFormState[1];
+  var ticketsState = useState([]); var tickets = ticketsState[0]; var setTickets = ticketsState[1];
+  var showTicketFormState = useState(false); var showTicketForm = showTicketFormState[0]; var setShowTicketForm = showTicketFormState[1];
+  var ticketFormState = useState({ buyer: "", quantity: "", price: "" }); var ticketForm = ticketFormState[0]; var setTicketForm = ticketFormState[1];
 
   useEffect(function() { loadData(); }, [refreshKey]);
 
@@ -59,6 +64,7 @@ export default function MommeeBeeApp(props) {
       supabase.from("decisions").select("*").order("position", { ascending: true }),
       supabase.from("event_expenses").select("*").order("created_at", { ascending: true }),
       supabase.from("sponsors").select("*").order("created_at", { ascending: false }),
+      supabase.from("ticket_sales").select("*").order("created_at", { ascending: false }),
     ]).then(function(results) {
       if (results[0].data) setSales(results[0].data);
       if (results[1].data) setSaleItems(results[1].data);
@@ -68,6 +74,7 @@ export default function MommeeBeeApp(props) {
       if (results[7].data) setDecisions(results[7].data.map(function(d) { return { id: d.id, text: d.text, priority: d.priority, status: d.status, date: d.date, tasks: d.tasks || [] }; }));
       if (results[8].data) setEventExpenses(results[8].data);
       if (results[9].data) setSponsors(results[9].data);
+      if (results[10].data) setTickets(results[10].data);
 
       var allExpenses = results[3].data || [];
       var recurring = results[6].data || [];
@@ -78,13 +85,11 @@ export default function MommeeBeeApp(props) {
       var monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
       var monthExp   = allExpenses.filter(function(e) { return e.date >= monthStart && e.date <= monthEnd; });
 
-      console.log("[Recurring] fetched:", recurring.length, "items. Month expenses:", monthExp.length);
       var toInsert = recurring.filter(function(r) {
         return !monthExp.some(function(e) {
           return e.category === r.category && (e.description || "") === (r.description || "");
         });
       });
-      console.log("[Recurring] toInsert:", toInsert.length, toInsert.map(function(r) { return r.description; }));
 
       function applyExpenses(list) {
         setExpenses(list.map(function(e) { return { id: e.id, date: e.date, category: e.category, desc: e.description || "", amount: parseFloat(e.amount_usd) || 0 }; }));
@@ -235,6 +240,23 @@ export default function MommeeBeeApp(props) {
     setSponsors(function(sp) { return sp.filter(function(s) { return s.id !== id; }); });
   };
 
+  var addTicketSale = function() {
+    var qty = parseInt(ticketForm.quantity, 10);
+    var price = parseFloat(ticketForm.price);
+    if (!ticketForm.buyer.trim() || !qty || !price) return;
+    var row = { buyer: ticketForm.buyer.trim(), quantity: qty, price_usd: price, date: new Date().toISOString().split("T")[0] };
+    supabase.from("ticket_sales").insert(row).select().single().then(function(res) {
+      if (res.data) setTickets(function(t) { return [res.data].concat(t); });
+    });
+    setTicketForm({ buyer: "", quantity: "", price: "" });
+    setShowTicketForm(false);
+  };
+
+  var deleteTicketSale = function(id) {
+    supabase.from("ticket_sales").delete().eq("id", id).then(function() {});
+    setTickets(function(t) { return t.filter(function(s) { return s.id !== id; }); });
+  };
+
   var getDecProgress = function(dec) {
     var tasks = dec.tasks || [];
     if (tasks.length === 0) return -1;
@@ -274,25 +296,30 @@ export default function MommeeBeeApp(props) {
   var todayGross = todaySales.reduce(function(s, v) { return s + (v.total_usd || 0); }, 0);
   var todayCount = todaySales.length;
 
+  // Yesterday (for "Ventas Hoy" change)
+  var yd = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+  var yesterdayStr = yd.getFullYear() + "-" + String(yd.getMonth() + 1).padStart(2, "0") + "-" + String(yd.getDate()).padStart(2, "0");
+  var yesterdayGross = sales.filter(function(s) { return s.date === yesterdayStr; }).reduce(function(s, v) { return s + (v.total_usd || 0); }, 0);
+  var todayChangePct = yesterdayGross > 0 ? (((todayGross - yesterdayGross) / yesterdayGross) * 100).toFixed(1) : "0";
+
   // Year
   var totalYearSales = sales.reduce(function(s, v) { return s + (v.total_usd || 0); }, 0);
 
   // By month
   var salesByMonth = MONTHS.map(function(month, i) {
-    var ms = sales.filter(function(s) { return new Date(s.date).getMonth() === i; });
+    var ms = sales.filter(function(s) { return monthOf(s.date) === i; });
     return { month: month, sales: ms.reduce(function(sum, s) { return sum + (s.total_usd || 0); }, 0), active: ms.length > 0 };
   });
 
   // Current month
-  var monthSalesTotal = sales.filter(function(s) { return new Date(s.date).getMonth() === cm; }).reduce(function(sum, s) { return sum + (s.total_usd || 0); }, 0);
-  var monthSaleIds = new Set(sales.filter(function(s) { return new Date(s.date).getMonth() === cm; }).map(function(s) { return s.id; }));
+  var monthSalesTotal = sales.filter(function(s) { return monthOf(s.date) === cm; }).reduce(function(sum, s) { return sum + (s.total_usd || 0); }, 0);
+  var monthSaleIds = new Set(sales.filter(function(s) { return monthOf(s.date) === cm; }).map(function(s) { return s.id; }));
   var monthItems = saleItems.filter(function(it) { return monthSaleIds.has(it.sale_id); });
-  var monthSaleCount = sales.filter(function(s) { return new Date(s.date).getMonth() === cm; }).length;
+  var monthSaleCount = sales.filter(function(s) { return monthOf(s.date) === cm; }).length;
 
   // Prev month for change
   var pm = cm === 0 ? 11 : cm - 1;
-  var prevMonthTotal = sales.filter(function(s) { return new Date(s.date).getMonth() === pm; }).reduce(function(sum, s) { return sum + (s.total_usd || 0); }, 0);
-  var salesChangePct = prevMonthTotal > 0 ? (((monthSalesTotal - prevMonthTotal) / prevMonthTotal) * 100).toFixed(1) : "0";
+  var prevMonthTotal = sales.filter(function(s) { return monthOf(s.date) === pm; }).reduce(function(sum, s) { return sum + (s.total_usd || 0); }, 0);
   var monthChangePct = prevMonthTotal > 0 ? (((monthSalesTotal - prevMonthTotal) / prevMonthTotal) * 100).toFixed(1) : "0";
 
   // COGS
@@ -315,9 +342,14 @@ export default function MommeeBeeApp(props) {
   var monthSponsors = sponsors.filter(function(s) { return s.date && s.date.startsWith(monthPrefix); });
   var totalSponsors = monthSponsors.reduce(function(s, sp) { return s + (parseFloat(sp.amount_usd) || 0); }, 0);
 
+  // Ticket sales (current month) — must be before P&L
+  var monthTickets = tickets.filter(function(t) { return t.date && t.date.startsWith(monthPrefix); });
+  var totalTicketsQty = monthTickets.reduce(function(s, t) { return s + (parseInt(t.quantity, 10) || 0); }, 0);
+  var totalTickets = monthTickets.reduce(function(s, t) { return s + ((parseInt(t.quantity, 10) || 0) * (parseFloat(t.price_usd) || 0)); }, 0);
+
   // P&L
   var grossProfit = monthSalesTotal - monthCogs;
-  var netProfit = grossProfit - totalOpex + totalSponsors;
+  var netProfit = grossProfit - totalOpex + totalSponsors + totalTickets;
   var grossMargin = monthSalesTotal > 0 ? ((grossProfit / monthSalesTotal) * 100).toFixed(1) : "0";
   var netMargin = monthSalesTotal > 0 ? ((netProfit / monthSalesTotal) * 100).toFixed(1) : "0";
 
@@ -334,7 +366,7 @@ export default function MommeeBeeApp(props) {
 
   // Platforms
   var platTotals = PLATFORMS.map(function(name) {
-    var total = sales.filter(function(s) { return s.platform === name && new Date(s.date).getMonth() === cm; }).reduce(function(sum, s) { return sum + (s.total_usd || 0); }, 0);
+    var total = sales.filter(function(s) { return s.platform === name && monthOf(s.date) === cm; }).reduce(function(sum, s) { return sum + (s.total_usd || 0); }, 0);
     return { name: name, sales: total, pct: monthSalesTotal > 0 ? Math.round((total / monthSalesTotal) * 100) : 0 };
   });
   var activePlatforms = platTotals.filter(function(p) { return p.sales > 0; }).length;
@@ -352,6 +384,10 @@ export default function MommeeBeeApp(props) {
   // Active imports
   var activeImports = imports.filter(function(i) { return i.status !== "Received"; });
 
+  // Alerts (low stock + active imports) — drives the Alerts card count
+  var lowStockCount = products.filter(function(p) { return p.status === "Active" && p.stock <= (p.min_stock || 0); }).length;
+  var alertCount = (lowStockCount > 0 ? 1 : 0) + (activeImports.length > 0 ? 1 : 0);
+
   // Event expenses
   var totalEventAmount = eventExpenses.reduce(function(s, e) { return s + (parseFloat(e.total_amount) || 0); }, 0);
   var totalEventPaid = eventExpenses.reduce(function(s, e) { return s + (parseFloat(e.paid_amount) || 0); }, 0);
@@ -366,11 +402,11 @@ export default function MommeeBeeApp(props) {
     });
   };
 
-  // Generate 12-point data for sparklines
+  // Generate 12-point data for sparklines (deterministic wave so bars don't flicker on re-render)
   var spark12 = function(base, variance) {
     var arr = [];
     for (var i = 0; i < 12; i++) {
-      arr.push(base + Math.round(Math.random() * variance * (i + 1) / 12));
+      arr.push(base + Math.round(variance * (Math.sin(i * 1.3) * 0.5 + 0.5)));
     }
     return arr;
   };
@@ -407,12 +443,6 @@ export default function MommeeBeeApp(props) {
             </svg>
             Refresh
           </button>
-          <div className="hdr-search">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-            </svg>
-            <input type="text" placeholder="Buscar productos, clientes..." />
-          </div>
         </div>
       </div>
 
@@ -421,7 +451,7 @@ export default function MommeeBeeApp(props) {
         {/* ROW 1: KPI Cards */}
         <div className="g4">
           {[
-            { label: "Ventas Hoy", val: fmtD(todayGross), change: "+" + salesChangePct + "%", up: parseFloat(salesChangePct) >= 0,
+            { label: "Ventas Hoy", val: fmtD(todayGross), change: (parseFloat(todayChangePct) >= 0 ? "+" : "") + todayChangePct + "% vs ayer", up: parseFloat(todayChangePct) >= 0,
               icon: function() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>; } },
             { label: "Ordenes Hoy", val: String(todayCount), change: "+" + todayCount, up: true,
               icon: function() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>; } },
@@ -511,6 +541,7 @@ export default function MommeeBeeApp(props) {
                   <tr className="total"><td>{"= Gross Profit "}<span className="bdg bdg-gn" style={{ marginLeft: "8px" }}>{grossMargin + "%"}</span></td><td style={{ color: "var(--green)" }}>{"$" + grossProfit.toLocaleString()}</td></tr>
                   <tr><td style={{ paddingLeft: "16px" }}>(-) Operating Expenses</td><td style={{ color: "var(--red)" }}>{"-$" + totalOpex.toLocaleString()}</td></tr>
                   {totalSponsors > 0 && <tr><td style={{ paddingLeft: "16px" }}>(+) Sponsor Income</td><td style={{ color: "var(--green)" }}>{"+$" + totalSponsors.toLocaleString()}</td></tr>}
+                  {totalTickets > 0 && <tr><td style={{ paddingLeft: "16px" }}>(+) Ticket Sales</td><td style={{ color: "var(--green)" }}>{"+$" + totalTickets.toLocaleString()}</td></tr>}
                   <tr className="total"><td>{"= Net Profit "}<span className={netProfit >= 0 ? "bdg bdg-gn" : "bdg bdg-rd"} style={{ marginLeft: "8px" }}>{netMargin + "%"}</span></td><td style={{ color: netProfit >= 0 ? "var(--green)" : "var(--red)" }}>{"$" + netProfit.toLocaleString()}</td></tr>
                 </tbody>
               </table>
@@ -528,16 +559,16 @@ export default function MommeeBeeApp(props) {
             <div className="card-h">
               <div>
                 <div className="card-t">Alerts</div>
-                <div className="card-sub">{"0 notifications"}</div>
+                <div className="card-sub">{alertCount + (alertCount === 1 ? " notification" : " notifications")}</div>
               </div>
             </div>
             <div className="card-b">
-              {products.filter(function(p) { return p.status === "Active" && p.stock <= (p.min_stock || 0); }).length > 0 && (
+              {lowStockCount > 0 && (
                 <div className="alert-row">
                   <div className="alert-icon warn">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "14px", height: "14px" }}><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                   </div>
-                  <span>{products.filter(function(p) { return p.status === "Active" && p.stock <= (p.min_stock || 0); }).length + " products below minimum stock"}</span>
+                  <span>{lowStockCount + " products below minimum stock"}</span>
                 </div>
               )}
               {activeImports.length > 0 && (
@@ -548,7 +579,7 @@ export default function MommeeBeeApp(props) {
                   <span>{activeImports.length + " active import orders"}</span>
                 </div>
               )}
-              {products.filter(function(p) { return p.status === "Active" && p.stock <= (p.min_stock || 0); }).length === 0 && activeImports.length === 0 && (
+              {lowStockCount === 0 && activeImports.length === 0 && (
                 <div style={{ textAlign: "center", padding: "32px 0", color: "var(--muted)" }}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: "32px", height: "32px", margin: "0 auto 8px", display: "block", opacity: 0.3 }}>
                     <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
@@ -847,8 +878,8 @@ export default function MommeeBeeApp(props) {
           </div>
         </div>
 
-        {/* ROW 6b: Pagos Pendientes + Sponsors */}
-        <div className="g2">
+        {/* ROW 6b: Pagos Pendientes + Sponsors + Ventas de Entradas */}
+        <div className="g3">
         <div className="card">
           <div className="card-h">
             <div>
@@ -992,6 +1023,79 @@ export default function MommeeBeeApp(props) {
                       <div style={{ flex: 1, fontSize: "13px", fontWeight: 600, color: "var(--text)" }}>{sp.name}</div>
                       <div style={{ fontSize: "13px", fontWeight: 700, color: "#16a34a" }}>{"$" + (parseFloat(sp.amount_usd) || 0).toFixed(2)}</div>
                       <button onClick={function() { deleteSponsor(sp.id); }} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", padding: "0", lineHeight: 1 }}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "13px", height: "13px" }}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="card-h">
+            <div>
+              <div className="card-t">Ventas de Entradas</div>
+              <div className="card-sub">{totalTicketsQty + " entradas · $" + totalTickets.toFixed(2) + " recibido"}</div>
+            </div>
+            <button className="btn" onClick={function() { setShowTicketForm(function(v) { return !v; }); }} style={{ padding: "6px 14px" }}>+ Agregar</button>
+          </div>
+          <div className="card-b">
+            <div className="summary-bar" style={{ marginBottom: "16px" }}>
+              <div className="summary-item"><div className="summary-label">Recibido</div><div className="summary-value" style={{ color: "var(--green)" }}>{"$" + totalTickets.toFixed(2)}</div></div>
+              <div className="summary-spacer" />
+              <div className="summary-item"><div className="summary-label">Entradas</div><div className="summary-value">{String(totalTicketsQty)}</div></div>
+            </div>
+
+            {showTicketForm && (
+              <div style={{ background: "var(--accent-light)", border: "1px solid var(--accent)", borderRadius: "var(--rs)", padding: "14px", marginBottom: "14px", animation: "slideIn 0.2s ease" }}>
+                <div className="form-row">
+                  <div className="form-group" style={{ gridColumn: "span 2" }}>
+                    <label className="form-label">Comprador</label>
+                    <input className="form-input" value={ticketForm.buyer} onChange={function(e) { setTicketForm({ buyer: e.target.value, quantity: ticketForm.quantity, price: ticketForm.price }); }} placeholder="Ej: Maria Perez" onKeyDown={function(e) { if (e.key === "Enter") addTicketSale(); }} autoFocus />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Cantidad</label>
+                    <input className="form-input" type="text" inputMode="numeric" value={ticketForm.quantity} onChange={function(e) { setTicketForm({ buyer: ticketForm.buyer, quantity: e.target.value, price: ticketForm.price }); }} placeholder="0" onKeyDown={function(e) { if (e.key === "Enter") addTicketSale(); }} />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Precio x Entrada ($)</label>
+                    <input className="form-input" type="text" inputMode="decimal" value={ticketForm.price} onChange={function(e) { setTicketForm({ buyer: ticketForm.buyer, quantity: ticketForm.quantity, price: e.target.value }); }} placeholder="0.00" onKeyDown={function(e) { if (e.key === "Enter") addTicketSale(); }} />
+                  </div>
+                </div>
+                {parseInt(ticketForm.quantity, 10) > 0 && parseFloat(ticketForm.price) > 0 && (
+                  <div style={{ fontSize: "12px", color: "var(--muted)", marginTop: "8px" }}>{"Total: "}<strong style={{ color: "#16a34a" }}>{"$" + (parseInt(ticketForm.quantity, 10) * parseFloat(ticketForm.price)).toFixed(2)}</strong></div>
+                )}
+                <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
+                  <button className="btn btn-primary" onClick={addTicketSale}>Guardar</button>
+                  <button className="btn" onClick={function() { setShowTicketForm(false); }}>Cancelar</button>
+                </div>
+              </div>
+            )}
+
+            {monthTickets.length === 0 && (
+              <div style={{ textAlign: "center", padding: "32px 0", color: "var(--muted)" }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: "32px", height: "32px", margin: "0 auto 8px", display: "block", opacity: 0.3 }}>
+                  <path d="M3 7v2a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2z"/><path d="M13 5v14"/>
+                </svg>
+                No hay ventas de entradas este mes. Agrega la primera.
+              </div>
+            )}
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              {monthTickets.map(function(t) {
+                var qty = parseInt(t.quantity, 10) || 0;
+                var price = parseFloat(t.price_usd) || 0;
+                return (
+                  <div key={t.id} style={{ padding: "12px 14px", background: "#f0fdf4", border: "1px solid #86efac", borderRadius: "var(--rs)" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text)" }}>{t.buyer}</div>
+                        <div style={{ fontSize: "11px", color: "var(--muted)" }}>{qty + " x $" + price.toFixed(2)}</div>
+                      </div>
+                      <div style={{ fontSize: "13px", fontWeight: 700, color: "#16a34a" }}>{"$" + (qty * price).toFixed(2)}</div>
+                      <button onClick={function() { deleteTicketSale(t.id); }} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", padding: "0", lineHeight: 1 }}>
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "13px", height: "13px" }}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                       </button>
                     </div>

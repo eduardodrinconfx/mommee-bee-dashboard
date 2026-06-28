@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase } from "./src/supabaseClient.js";
 import MommeeBeeApp from "./mommee-bee-app.jsx";
 import MommeeVentas from "./mommee-bee-ventas.jsx";
 import MommeeInventario from "./mommee-bee-inventario.jsx";
@@ -76,6 +77,12 @@ export default function App() {
   var mobOpenState = useState(false);
   var mobOpen = mobOpenState[0];
   var setMobOpen = mobOpenState[1];
+
+  useEffect(function() {
+    supabase.from("clients").select("*").order("name").then(function(res) {
+      if (res.data) setClients(res.data);
+    });
+  }, []);
 
   var handleNavClick = function(key) {
     setActiveModule(key);
@@ -169,7 +176,7 @@ export default function App() {
               <button
                 key={item.key}
                 className={"sb-item" + (activeModule === item.key ? " active" : "")}
-                onClick={function() { setActiveModule(item.key); }}
+                onClick={function() { handleNavClick(item.key); }}
               >
                 {item.icon()}
                 <span>{item.label}</span>
