@@ -10,6 +10,12 @@ function fmtK(v) { return v >= 1000 ? "$" + (v / 1000).toFixed(1) + "k" : "$" + 
 function fmtD(v) { return "$" + v.toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 // Parse 0-based month directly from "YYYY-MM-DD" to avoid UTC timezone shifts at month boundaries
 function monthOf(dateStr) { return dateStr ? parseInt(String(dateStr).substring(5, 7), 10) - 1 : -1; }
+// Clasifica un gasto en COGS / OPEX / EVENT segun su categoria.
+function classifyExpense(category) {
+  if (category === "Evento") return "EVENT";
+  if (category === "Packaging" || category === "Taxes" || category === "Other") return "COGS";
+  return "OPEX";
+}
 
 export default function MommeeBeeApp(props) {
   var onNavigate = props.onNavigate || function() {};
@@ -92,8 +98,7 @@ export default function MommeeBeeApp(props) {
       });
 
       function applyExpenses(list) {
-        setExpenses(list.map(function(e) { return { id: e.id, date: e.date, category: e.category, desc: e.description || "", amount: parseFloat(e.amount_usd) || 0 }; }));
-        setLoading(false);
+setExpenses(list.map(function(e) { return { id: e.id, date: e.date, category: e.category, desc: e.description || "", amount: parseFloat(e.amount_usd) || 0, type: e.expense_type || classifyExpense(e.category) }; }));        setLoading(false);
       }
 
       if (toInsert.length > 0) {
@@ -101,8 +106,7 @@ export default function MommeeBeeApp(props) {
         var mo = String(now.getMonth() + 1).padStart(2, "0");
         var rows = toInsert.map(function(r) {
           var day = String(r.day_of_month || 1).padStart(2, "0");
-          return { date: yr + "-" + mo + "-" + day, category: r.category, description: r.description, amount_usd: r.amount_usd };
-        });
+return { date: yr + "-" + mo + "-" + day, category: r.category, description: r.description, amount_usd: r.amount_usd, expense_type: classifyExpense(r.category) };        });
         supabase.from("expenses").insert(rows).select().then(function(res) {
           if (res.error) { console.error("Error inserting recurring expenses:", res.error); }
           applyExpenses(res.data ? allExpenses.concat(res.data) : allExpenses);
@@ -274,11 +278,10 @@ export default function MommeeBeeApp(props) {
   var saveExpense = function() {
     var amount = parseFloat(expForm.amount) || 0;
     if (amount <= 0) return;
-    var row = { date: expForm.date, category: expForm.category, description: expForm.desc, amount_usd: amount };
-    supabase.from("expenses").insert(row).select().single().then(function(res) {
+var etype = classifyExpense(expForm.category);
+    var row = { date: expForm.date, category: expForm.category, description: expForm.desc, amount_usd: amount, expense_type: etype };    supabase.from("expenses").insert(row).select().single().then(function(res) {
       var d = res.data || {};
-      setExpenses(function(ex) { return [{ id: d.id || Date.now(), date: expForm.date, category: expForm.category, desc: expForm.desc, amount: amount }].concat(ex); });
-      setExpForm({ date: new Date().toISOString().split("T")[0], category: "Advertising", desc: "", amount: "" });
+setExpenses(function(ex) { return [{ id: d.id || Date.now(), date: expForm.date, category: expForm.category, desc: expForm.desc, amount: amount, type: etype }].concat(ex); });      setExpForm({ date: new Date().toISOString().split("T")[0], category: "Advertising", desc: "", amount: "" });
       setShowExpenseForm(false);
     });
   };
@@ -336,8 +339,13 @@ export default function MommeeBeeApp(props) {
   var fixedExpenses = monthExpenses.filter(function(e) { return recurringKeys.indexOf(e.category + "|" + e.desc) >= 0; });
   var variableExpenses = monthExpenses.filter(function(e) { return recurringKeys.indexOf(e.category + "|" + e.desc) < 0; });
   var recurringTotal = fixedExpenses.reduce(function(s, e) { return s + (e.amount || 0); }, 0);
-  var totalOpex = monthExpenses.reduce(function(s, e) { return s + (e.amount || 0); }, 0);
-
+  // Separar gastos por tipo: SOLO OPEX cuenta como gasto operativo.
+  var opexExpenses      = monthExpenses.filter(function(e) { return (e.type || "OPEX") === "OPEX"; });
+  var inventoryExpenses = monthExpenses.filter(function(e) { return e.type === "COGS"; });
+  var eventOpExpenses   = monthExpenses.filter(function(e) { return e.type === "EVENT"; });
+  var totalOpex      = opexExpenses.reduce(function(s, e) { return s + (e.amount || 0); }, 0);
+  var totalInventory = inventoryExpenses.reduce(function(s, e) { return s + (e.amount || 0); }, 0);
+  var totalEventOp   = eventOpExpenses.reduce(function(s, e) { return s + (e.amount || 0); }, 0);
   // Sponsors (current month) — must be before P&L
   var monthSponsors = sponsors.filter(function(s) { return s.date && s.date.startsWith(monthPrefix); });
   var totalSponsors = monthSponsors.reduce(function(s, sp) { return s + (parseFloat(sp.amount_usd) || 0); }, 0);
