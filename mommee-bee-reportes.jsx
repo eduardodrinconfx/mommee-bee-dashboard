@@ -14,6 +14,12 @@ function fmtD(v) { return "$" + v.toLocaleString("en", { minimumFractionDigits: 
 // Parse from "YYYY-MM-DD" directly to avoid UTC timezone shifts at month boundaries
 function monthOf(dateStr) { return dateStr ? parseInt(String(dateStr).substring(5, 7), 10) - 1 : -1; }
 function yearOf(dateStr) { return dateStr ? parseInt(String(dateStr).substring(0, 4), 10) : -1; }
+// Clasifica un gasto en COGS / OPEX / EVENT segun su categoria (fallback si expense_type viene vacio).
+function classifyExpense(category) {
+  if (category === "Evento") return "EVENT";
+  if (category === "Packaging" || category === "Taxes" || category === "Other") return "COGS";
+  return "OPEX";
+}
 
 function CustomTooltip(props) {
   var active = props.active;
@@ -109,7 +115,7 @@ export default function MommeeReportes(props) {
     var mItems = saleItems.filter(function(si) { return mSaleIds.has(si.sale_id); });
     var mCOGS = mItems.reduce(function(sum, si) { return sum + si.quantity * (costMap[si.product_id] || 0); }, 0);
     var mExp = filteredExpenses.filter(function(e) { return monthOf(e.date) === idx && yearOf(e.date) === year; });
-    var mOPEX = mExp.reduce(function(sum, e) { return sum + (parseFloat(e.amount_usd) || 0); }, 0);
+    var mOPEX = mExp.filter(function(e) { return (e.expense_type || classifyExpense(e.category)) === "OPEX"; }).reduce(function(sum, e) { return sum + (parseFloat(e.amount_usd) || 0); }, 0);
     var mSpon = filteredSponsors.filter(function(s) { return monthOf(s.date) === idx && yearOf(s.date) === year; });
     var mSponsors = mSpon.reduce(function(sum, s) { return sum + (parseFloat(s.amount_usd) || 0); }, 0);
     var mTick = filteredTickets.filter(function(t) { return monthOf(t.date) === idx && yearOf(t.date) === year; });
@@ -140,7 +146,7 @@ export default function MommeeReportes(props) {
   var totalSales = filteredSales.reduce(function(sum, s) { return sum + (parseFloat(s.total_usd) || 0); }, 0);
   var periodItems = saleItems.filter(function(si) { return filteredSaleIds.has(si.sale_id); });
   var totalCOGS = periodItems.reduce(function(sum, si) { return sum + si.quantity * (costMap[si.product_id] || 0); }, 0);
-  var totalOPEX = filteredExpenses.reduce(function(sum, e) { return sum + (parseFloat(e.amount_usd) || 0); }, 0);
+  var totalOPEX = filteredExpenses.filter(function(e) { return (e.expense_type || classifyExpense(e.category)) === "OPEX"; }).reduce(function(sum, e) { return sum + (parseFloat(e.amount_usd) || 0); }, 0);
   var totalSponsors = filteredSponsors.reduce(function(sum, s) { return sum + (parseFloat(s.amount_usd) || 0); }, 0);
   var totalTickets = filteredTickets.reduce(function(sum, t) { return sum + ((parseInt(t.quantity, 10) || 0) * (parseFloat(t.price_usd) || 0)); }, 0);
   var totalProfit = totalSales - totalCOGS - totalOPEX + totalSponsors + totalTickets;
